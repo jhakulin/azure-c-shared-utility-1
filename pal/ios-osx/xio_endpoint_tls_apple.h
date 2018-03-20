@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef TLSIO_APPLEIOS_H
-#define TLSIO_APPLEIOS_H
+#ifndef XIO_ENDPOINT_TLS_APPLE_H
+#define XIO_ENDPOINT_TLS_APPLE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,10 +21,10 @@ extern "C" {
 *
 * @return	The tlsio interface (IO_INTERFACE_DESCRIPTION).
 */
-MOCKABLE_FUNCTION(, const IO_INTERFACE_DESCRIPTION*, tlsio_appleios_get_interface_description);
+MOCKABLE_FUNCTION(, const XIO_ENDPOINT_INTERFACE*, xio_endpoint_tls_apple_get_interface);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* TLSIO_APPLEIOS_H */
+#endif /* XIO_ENDPOINT_TLS_APPLE_H */

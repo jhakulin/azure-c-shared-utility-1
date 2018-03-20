@@ -3,12 +3,14 @@
 
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/platform.h"
+#include "azure_c_shared_utility/xio_impl.h"
+#include "xio_endpoint_config_tls.h"
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 
-#include "tlsio_appleios.h"
+#include "xio_endpoint_tls_apple.h"
 
 int platform_init(void)
 {
@@ -17,7 +19,7 @@ int platform_init(void)
 
 const IO_INTERFACE_DESCRIPTION* platform_get_default_tlsio(void)
 {
-    return tlsio_appleios_get_interface_description();
+    return tlsio_basic_get_interface_description(xio_endpoint_tls_apple_get_interface(), TLSIO_OPTION_BIT_NONE);
 }
 
 STRING_HANDLE platform_get_platform_info(void)

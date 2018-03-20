@@ -241,6 +241,7 @@ ${LOGGING_C_FILE}
 ./src/urlencode.c
 ./src/usha.c
 ./src/vector.c
+./src/xio_impl.c
 ${XLOGGING_C_FILE}
 ./src/optionhandler.c
 ./adapters/agenttime.c
@@ -293,10 +294,10 @@ if(${use_cyclonessl} AND WIN32)
 endif()
 if(${use_applessl})
     set(source_c_files ${source_c_files}
-        ./pal/ios-osx/tlsio_appleios.c
         ./pal/tlsio_options.c
+        ./pal/xio_endpoint_config_tls.c
+        ./pal/ios-osx/xio_endpoint_tls_apple.c
     )
-    include_directories(./pal/ios-osx/)
 endif()
 
 #these are the C headers
@@ -310,6 +311,7 @@ set(source_h_files
 ./inc/azure_c_shared_utility/constmap.h
 ./inc/azure_c_shared_utility/condition.h
 ./inc/azure_c_shared_utility/const_defines.h
+./inc/azure_c_shared_utility/constbuffer.h
 ${LOGGING_H_FILE}
 ./inc/azure_c_shared_utility/doublylinkedlist.h
 ./inc/azure_c_shared_utility/gballoc.h
@@ -325,6 +327,7 @@ ${LOGGING_H_FILE}
 ./inc/azure_c_shared_utility/macro_utils.h
 ./inc/azure_c_shared_utility/map.h
 ./inc/azure_c_shared_utility/optimize_size.h
+./inc/azure_c_shared_utility/optionhandler.h
 ./inc/azure_c_shared_utility/platform.h
 ./inc/azure_c_shared_utility/refcount.h
 ./inc/azure_c_shared_utility/sastoken.h
@@ -339,7 +342,7 @@ ${LOGGING_H_FILE}
 ./inc/azure_c_shared_utility/string_tokenizer_types.h
 ./inc/azure_c_shared_utility/tickcounter.h
 ./inc/azure_c_shared_utility/threadapi.h
-./inc/azure_c_shared_utility/xio.h
+./inc/azure_c_shared_utility/tlsio.h
 ./inc/azure_c_shared_utility/umock_c_prod.h
 ./inc/azure_c_shared_utility/uniqueid.h
 ./inc/azure_c_shared_utility/uuid.h
@@ -347,10 +350,11 @@ ${LOGGING_H_FILE}
 ./inc/azure_c_shared_utility/vector.h
 ./inc/azure_c_shared_utility/vector_types.h
 ./inc/azure_c_shared_utility/vector_types_internal.h
+./inc/azure_c_shared_utility/xio.h
 ./inc/azure_c_shared_utility/xlogging.h
-./inc/azure_c_shared_utility/constbuffer.h
-./inc/azure_c_shared_utility/tlsio.h
-./inc/azure_c_shared_utility/optionhandler.h
+./inc/azure_c_shared_utility/xio_impl.h
+./inc/azure_c_shared_utility/xio_endpoint.h
+./inc/azure_c_shared_utility/xio_endpoint_config.h
 )
 
 if(UNIX) #LINUX OR APPLE
@@ -412,9 +416,9 @@ if(${use_cyclonessl} AND WIN32)
 endif()
 if(${use_applessl})
     set(source_h_files ${source_h_files}
-        ./pal/ios-osx/tlsio_appleios.h
+        ./pal/inc/xio_endpoint_config_tls.h
     )
-    include_directories(./pal/ios-osx/)
+    include_directories(./pal/ios-osx/ ./pal/inc/)
 endif()
 
 #this is the product (a library)
