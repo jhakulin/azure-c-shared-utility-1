@@ -25,43 +25,74 @@
 					<folderInfo id="com.crt.advproject.config.lib.debug.1196209445." name="/" resourcePath="">
 						<toolChain id="com.crt.advproject.toolchain.lib.debug.538982020" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.lib.debug">
 							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.debug.63189565" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.lib.debug"/>
-							<builder buildPath="${workspace_loc:/azure-c-shared-utility}/Debug" id="com.crt.advproject.builder.lib.debug.1705857817" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.crt.advproject.builder.lib.debug"/>
+							<builder buildPath="${workspace_loc:/azure-c-shared-utility}/Debug" id="com.crt.advproject.builder.lib.debug.1705857817" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" stopOnErr="true" superClass="com.crt.advproject.builder.lib.debug"/>
 							<tool id="com.crt.advproject.cpp.lib.debug.1639863258" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.lib.debug"/>
 							<tool id="com.crt.advproject.gcc.lib.debug.1987204295" name="MCU C Compiler" superClass="com.crt.advproject.gcc.lib.debug">
 								<option id="com.crt.advproject.gcc.thumb.312443389" name="Thumb mode" superClass="com.crt.advproject.gcc.thumb" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.gcc.arch.1559641786" name="Architecture" superClass="com.crt.advproject.gcc.arch" value="com.crt.advproject.gcc.target.cm4" valueType="enumerated"/>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.359923426" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="__REDLIB__"/>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.359923426" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DEBUG"/>
 									<listOptionValue builtIn="false" value="__CODE_RED"/>
+									<listOptionValue builtIn="false" value="__REDLIB__"/>
+									<listOptionValue builtIn="false" value="USE_CTEST"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.other.2059818967" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections" valueType="string"/>
 								<option id="gnu.c.compiler.option.optimization.flags.284149093" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" value="-fno-common" valueType="string"/>
-								<option id="gnu.c.compiler.option.include.paths.1029276242" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
+								<option id="gnu.c.compiler.option.include.paths.1029276242" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/inc}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/testtools/umock-c/inc/aux_inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/pal/generic}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/umock-c/inc}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/umock-c/inc/aux_inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/testrunner/inc}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/ctest/inc}&quot;"/>
 								</option>
+								<option id="com.crt.advproject.gcc.hdrlib.1874260437" name="Library headers" superClass="com.crt.advproject.gcc.hdrlib" useByScannerDiscovery="false" value="com.crt.advproject.gcc.hdrlib.codered" valueType="enumerated"/>
+								<option id="com.crt.advproject.gcc.specs.414541769" name="Specs" superClass="com.crt.advproject.gcc.specs" useByScannerDiscovery="false" value="com.crt.advproject.gcc.specs.codered" valueType="enumerated"/>
+								<option id="gnu.c.compiler.option.warnings.allwarn.1588433235" name="All warnings (-Wall)" superClass="gnu.c.compiler.option.warnings.allwarn" useByScannerDiscovery="false" value="false" valueType="boolean"/>
+								<option id="com.crt.advproject.c.misc.dialect.1023660763" name="Language standard" superClass="com.crt.advproject.c.misc.dialect" useByScannerDiscovery="true" value="com.crt.advproject.misc.dialect.gnu99" valueType="enumerated"/>
 								<inputType id="com.crt.advproject.compiler.input.1966487977" superClass="com.crt.advproject.compiler.input"/>
 							</tool>
 							<tool id="com.crt.advproject.gas.lib.debug.649888748" name="MCU Assembler" superClass="com.crt.advproject.gas.lib.debug">
 								<option id="com.crt.advproject.gas.thumb.1412855544" name="Thumb mode" superClass="com.crt.advproject.gas.thumb" value="true" valueType="boolean"/>
 								<option id="com.crt.advproject.gas.arch.1141063554" name="Architecture" superClass="com.crt.advproject.gas.arch" value="com.crt.advproject.gas.target.cm4" valueType="enumerated"/>
-								<option id="gnu.both.asm.option.flags.crt.1018069635" name="Assembler flags" superClass="gnu.both.asm.option.flags.crt" value="-c -x assembler-with-cpp -D__REDLIB__ -DDEBUG -D__CODE_RED" valueType="string"/>
+								<option id="gnu.both.asm.option.flags.crt.1018069635" name="Assembler flags" superClass="gnu.both.asm.option.flags.crt" useByScannerDiscovery="false" value="-c -x assembler-with-cpp -DDEBUG -D__CODE_RED -D__REDLIB__" valueType="string"/>
 								<option id="gnu.both.asm.option.include.paths.300394652" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/pal/generic}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/ctest/inc}&quot;"/>
 								</option>
+								<option id="com.crt.advproject.gas.hdrlib.1179841648" name="Library headers" superClass="com.crt.advproject.gas.hdrlib" useByScannerDiscovery="false" value="com.crt.advproject.gas.hdrlib.codered" valueType="enumerated"/>
+								<option id="com.crt.advproject.gas.specs.2000207590" name="Specs" superClass="com.crt.advproject.gas.specs" useByScannerDiscovery="false" value="com.crt.advproject.gas.specs.codered" valueType="enumerated"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1136655240" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 								<inputType id="com.crt.advproject.assembler.input.984315274" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
 							</tool>
 							<tool id="com.crt.advproject.ar.lib.debug.771115181" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.debug"/>
 						</toolChain>
 					</folderInfo>
+					<folderInfo id="com.crt.advproject.config.lib.debug.1196209445.1775174312" name="/" resourcePath="inc/azure_c_shared_utility">
+						<toolChain id="com.crt.advproject.toolchain.lib.debug.1380988105" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.lib.debug" unusedChildren="">
+							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.debug" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.lib.debug"/>
+							<tool id="com.crt.advproject.cpp.lib.debug.2086487252" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.lib.debug.1639863258"/>
+							<tool id="com.crt.advproject.gcc.lib.debug.47711572" name="MCU C Compiler" superClass="com.crt.advproject.gcc.lib.debug.1987204295">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1031563232" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="DEBUG"/>
+									<listOptionValue builtIn="false" value="__CODE_RED"/>
+									<listOptionValue builtIn="false" value="__REDLIB__"/>
+									<listOptionValue builtIn="false" value="USE_CTEST"/>
+									<listOptionValue builtIn="false" value="GB_DEBUG_ALLOC"/>
+								</option>
+								<inputType id="com.crt.advproject.compiler.input.1601974315" superClass="com.crt.advproject.compiler.input"/>
+							</tool>
+							<tool id="com.crt.advproject.gas.lib.debug.569720987" name="MCU Assembler" superClass="com.crt.advproject.gas.lib.debug.649888748">
+								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.933989267" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+								<inputType id="com.crt.advproject.assembler.input.548667508" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
+							</tool>
+							<tool id="com.crt.advproject.ar.lib.debug.226438269" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.debug.771115181"/>
+						</toolChain>
+					</folderInfo>
 					<sourceEntries>
 						<entry excluding="etw*.*|tlsio*.c|x509_schannel.c|x509_openssl.c|gbnetwork.*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="src"/>
+						<entry excluding="**/main.c" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="tests"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="testtools/umock-c/deps/testrunner/src"/>
 						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="testtools/umock-c/src"/>
 					</sourceEntries>
@@ -102,12 +133,14 @@
 									<listOptionValue builtIn="false" value="__REDLIB__"/>
 									<listOptionValue builtIn="false" value="NDEBUG"/>
 									<listOptionValue builtIn="false" value="__CODE_RED"/>
+									<listOptionValue builtIn="false" value="USE_CTEST"/>
 								</option>
 								<option id="gnu.c.compiler.option.misc.other.171910540" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections" valueType="string"/>
 								<option id="gnu.c.compiler.option.optimization.flags.854142422" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" value="-fno-common" valueType="string"/>
 								<option id="gnu.c.compiler.option.include.paths.875724664" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/pal/generic}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/ctest/inc}&quot;"/>
 								</option>
 								<inputType id="com.crt.advproject.compiler.input.382694162" superClass="com.crt.advproject.compiler.input"/>
 							</tool>
@@ -118,11 +151,33 @@
 								<option id="gnu.both.asm.option.include.paths.1227377620" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/inc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/pal/generic}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/azure-c-shared-utility/testtools/ctest/inc}&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1788559249" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 								<inputType id="com.crt.advproject.assembler.input.1343398299" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
 							</tool>
 							<tool id="com.crt.advproject.ar.lib.release.1150652441" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.release"/>
+						</toolChain>
+					</folderInfo>
+					<folderInfo id="com.crt.advproject.config.lib.release.176158921.784197104" name="/" resourcePath="inc/azure_c_shared_utility">
+						<toolChain id="com.crt.advproject.toolchain.lib.release.1126431482" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.lib.release" unusedChildren="">
+							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.release" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.lib.release"/>
+							<tool id="com.crt.advproject.cpp.lib.release.161919316" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.lib.release.1768015770"/>
+							<tool id="com.crt.advproject.gcc.lib.release.574507746" name="MCU C Compiler" superClass="com.crt.advproject.gcc.lib.release.663204327">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.83531946" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="__REDLIB__"/>
+									<listOptionValue builtIn="false" value="NDEBUG"/>
+									<listOptionValue builtIn="false" value="__CODE_RED"/>
+									<listOptionValue builtIn="false" value="USE_CTEST"/>
+									<listOptionValue builtIn="false" value="GB_DEBUG_ALLOC"/>
+								</option>
+								<inputType id="com.crt.advproject.compiler.input.1266747199" superClass="com.crt.advproject.compiler.input"/>
+							</tool>
+							<tool id="com.crt.advproject.gas.lib.release.987534848" name="MCU Assembler" superClass="com.crt.advproject.gas.lib.release.1519355033">
+								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.2131750278" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+								<inputType id="com.crt.advproject.assembler.input.408019858" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
+							</tool>
+							<tool id="com.crt.advproject.ar.lib.release.123592656" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.release.1150652441"/>
 						</toolChain>
 					</folderInfo>
 				</configuration>
@@ -222,7 +277,14 @@
 &lt;/TargetConfig&gt;</projectStorage>
 	</storageModule>
 	<storageModule moduleId="com.crt.advproject"/>
-	<storageModule moduleId="refreshScope"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/azure-c-shared-utility"/>
+		</configuration>
+		<configuration configurationName="Release">
+			<resource resourceType="PROJECT" workspacePath="/azure-c-shared-utility"/>
+		</configuration>
+	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		<scannerConfigBuildInfo instanceId="com.crt.advproject.config.lib.release.176158921;com.crt.advproject.config.lib.release.176158921.;com.crt.advproject.gcc.lib.release.663204327;com.crt.advproject.compiler.input.382694162">
@@ -238,4 +300,6 @@
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.crt.advproject.GCCManagedMakePerProjectProfile"/>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>
