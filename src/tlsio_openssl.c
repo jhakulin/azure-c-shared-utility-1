@@ -68,10 +68,8 @@ typedef struct TLS_IO_INSTANCE_TAG
     BIO* out_bio;
     TLSIO_STATE tlsio_state;
     char* certificate;
-    const char* x509certificate;
-    const char* x509privatekey;
-    const char* x509_ecc_cert;
-    const char* x509_ecc_aliaskey;
+    const char* x509_certificate;
+    const char* x509_private_key;
     TLSIO_VERSION tls_version;
     TLS_CERTIFICATE_VALIDATION_CALLBACK tls_validation_callback;
     void* tls_validation_callback_data;
@@ -82,7 +80,7 @@ struct CRYPTO_dynlock_value
     LOCK_HANDLE lock;
 };
 
-#define OPTION_UNDERLYING_IO_OPTIONS        "underlying_io_options"
+static const char* const OPTION_UNDERLYING_IO_OPTIONS = "underlying_io_options";
 #define SSL_DO_HANDSHAKE_SUCCESS 1
 
 
@@ -301,39 +299,15 @@ static OPTIONHANDLER_HANDLE tlsio_openssl_retrieveoptions(CONCRETE_IO_HANDLE han
                 OptionHandler_Destroy(result);
                 result = NULL;
             }
-            else if (
-                (tls_io_instance->x509certificate != NULL) &&
-                (OptionHandler_AddOption(result, SU_OPTION_X509_CERT, tls_io_instance->x509certificate) != OPTIONHANDLER_OK)
-                )
+            else if (tls_io_instance->x509_certificate != NULL && (OptionHandler_AddOption(result, SU_OPTION_X509_CERT, tls_io_instance->x509_certificate) != OPTIONHANDLER_OK) )
             {
-                LogError("unable to save x509certificate option");
+                LogError("unable to save x509 certificate option");
                 OptionHandler_Destroy(result);
                 result = NULL;
             }
-            else if (
-                (tls_io_instance->x509privatekey != NULL) &&
-                (OptionHandler_AddOption(result, SU_OPTION_X509_PRIVATE_KEY, tls_io_instance->x509privatekey) != OPTIONHANDLER_OK)
-                )
+            else if (tls_io_instance->x509_private_key != NULL && (OptionHandler_AddOption(result, SU_OPTION_X509_PRIVATE_KEY, tls_io_instance->x509_private_key) != OPTIONHANDLER_OK) )
             {
-                LogError("unable to save x509privatekey option");
-                OptionHandler_Destroy(result);
-                result = NULL;
-            }
-            else if (
-                (tls_io_instance->x509_ecc_cert != NULL) &&
-                (OptionHandler_AddOption(result, OPTION_X509_ECC_CERT, tls_io_instance->x509_ecc_cert) != OPTIONHANDLER_OK)
-                )
-            {
-                LogError("unable to save x509_ecc_cert option");
-                OptionHandler_Destroy(result);
-                result = NULL;
-            }
-            else if (
-                (tls_io_instance->x509_ecc_aliaskey != NULL) &&
-                (OptionHandler_AddOption(result, OPTION_X509_ECC_KEY, tls_io_instance->x509_ecc_aliaskey) != OPTIONHANDLER_OK)
-                )
-            {
-                LogError("unable to save x509_ecc_aliaskey option");
+                LogError("unable to save x509 privatekey option");
                 OptionHandler_Destroy(result);
                 result = NULL;
             }
@@ -962,25 +936,14 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
     }
     /*x509 authentication can only be build before underlying connection is realized*/
     else if (
-        (tlsInstance->x509certificate != NULL) &&
-        (tlsInstance->x509privatekey != NULL) &&
-        (x509_openssl_add_credentials(tlsInstance->ssl_context, tlsInstance->x509certificate, tlsInstance->x509privatekey) != 0)
+        (tlsInstance->x509_certificate != NULL) &&
+        (tlsInstance->x509_private_key != NULL) &&
+        (x509_openssl_add_credentials(tlsInstance->ssl_context, tlsInstance->x509_certificate, tlsInstance->x509_private_key) != 0)
         )
     {
         SSL_CTX_free(tlsInstance->ssl_context);
         tlsInstance->ssl_context = NULL;
         log_ERR_get_error("unable to use x509 authentication");
-        result = __FAILURE__;
-    }
-    else if (
-        (tlsInstance->x509_ecc_cert != NULL) &&
-        (tlsInstance->x509_ecc_aliaskey != NULL) &&
-        (x509_openssl_add_ecc_credentials(tlsInstance->ssl_context, tlsInstance->x509_ecc_cert, tlsInstance->x509_ecc_aliaskey) != 0)
-        )
-    {
-        SSL_CTX_free(tlsInstance->ssl_context);
-        tlsInstance->ssl_context = NULL;
-        LogError("unable to use x509 authentication");
         result = __FAILURE__;
     }
     else
@@ -1074,7 +1037,7 @@ void tlsio_openssl_deinit(void)
 {
     openssl_dynamic_locks_uninstall();
     openssl_static_locks_uninstall();
-#if  (OPENSSL_VERSION_NUMBER >= 0x00907000L) &&  (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if  (OPENSSL_VERSION_NUMBER >= 0x00907000L) &&  (OPENSSL_VERSION_NUMBER < 0x20000000L) && (FIPS_mode_set)
     FIPS_mode_set(0);
 #endif
     CRYPTO_set_locking_callback(NULL);
@@ -1087,7 +1050,7 @@ void tlsio_openssl_deinit(void)
 #elif (OPENSSL_VERSION_NUMBER < 0x10100000L) || (OPENSSL_VERSION_NUMBER >= 0x20000000L)
     ERR_remove_thread_state(NULL);
 #endif
-#if  (OPENSSL_VERSION_NUMBER >= 0x10002000L) &&  (OPENSSL_VERSION_NUMBER < 0x10010000L)
+#if  (OPENSSL_VERSION_NUMBER >= 0x10002000L) &&  (OPENSSL_VERSION_NUMBER < 0x10010000L) && (SSL_COMP_free_compression_methods)
     SSL_COMP_free_compression_methods();
 #endif
     CRYPTO_cleanup_all_ex_data();
@@ -1112,6 +1075,7 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
         }
         else
         {
+            SOCKETIO_CONFIG socketio_config;
             const IO_INTERFACE_DESCRIPTION* underlying_io_interface;
             void* io_interface_parameters;
 
@@ -1122,8 +1086,6 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
             }
             else
             {
-                SOCKETIO_CONFIG socketio_config;
-
                 socketio_config.hostname = tls_io_config->hostname;
                 socketio_config.port = tls_io_config->port;
                 socketio_config.accepted_socket = NULL;
@@ -1155,10 +1117,8 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
                 result->ssl_context = NULL;
                 result->tls_validation_callback = NULL;
                 result->tls_validation_callback_data = NULL;
-                result->x509certificate = NULL;
-                result->x509privatekey = NULL;
-                result->x509_ecc_cert = NULL;
-                result->x509_ecc_aliaskey = NULL;
+                result->x509_certificate = NULL;
+                result->x509_private_key = NULL;
 
                 result->tls_version = VERSION_1_0;
 
@@ -1194,10 +1154,8 @@ void tlsio_openssl_destroy(CONCRETE_IO_HANDLE tls_io)
             free(tls_io_instance->certificate);
             tls_io_instance->certificate = NULL;
         }
-        free((void*)tls_io_instance->x509certificate);
-        free((void*)tls_io_instance->x509privatekey);
-        free((void*)tls_io_instance->x509_ecc_cert);
-        free((void*)tls_io_instance->x509_ecc_aliaskey);
+        free((void*)tls_io_instance->x509_certificate);
+        free((void*)tls_io_instance->x509_private_key);
         close_openssl_instance(tls_io_instance);
         if (tls_io_instance->underlying_io != NULL)
         {
@@ -1470,9 +1428,9 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
                 result = add_certificate_to_store(tls_io_instance, cert);
             }
         }
-        else if (strcmp(SU_OPTION_X509_CERT, optionName) == 0)
+        else if (strcmp(SU_OPTION_X509_CERT, optionName) == 0 || strcmp(OPTION_X509_ECC_CERT, optionName) == 0)
         {
-            if (tls_io_instance->x509certificate != NULL)
+            if (tls_io_instance->x509_certificate != NULL)
             {
                 LogError("unable to set x509 options more than once");
                 result = __FAILURE__;
@@ -1480,7 +1438,7 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
             else
             {
                 /*let's make a copy of this option*/
-                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509certificate, value) != 0)
+                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509_certificate, value) != 0)
                 {
                     LogError("unable to mallocAndStrcpy_s");
                     result = __FAILURE__;
@@ -1491,9 +1449,9 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
                 }
             }
         }
-        else if (strcmp(SU_OPTION_X509_PRIVATE_KEY, optionName) == 0)
+        else if (strcmp(SU_OPTION_X509_PRIVATE_KEY, optionName) == 0 || strcmp(OPTION_X509_ECC_KEY, optionName) == 0)
         {
-            if (tls_io_instance->x509privatekey != NULL)
+            if (tls_io_instance->x509_private_key != NULL)
             {
                 LogError("unable to set more than once x509 options");
                 result = __FAILURE__;
@@ -1501,59 +1459,7 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
             else
             {
                 /*let's make a copy of this option*/
-                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509privatekey, value) != 0)
-                {
-                    LogError("unable to mallocAndStrcpy_s");
-                    result = __FAILURE__;
-                }
-                else
-                {
-                    result = 0;
-                }
-            }
-        }
-        else if (strcmp(OPTION_X509_ECC_KEY, optionName) == 0)
-        {
-            if (tls_io_instance->x509_ecc_aliaskey != NULL)
-            {
-                LogError("unable to set more than once x509 options");
-                result = __FAILURE__;
-            }
-            else if (tls_io_instance->x509certificate != NULL || tls_io_instance->x509privatekey != NULL)
-            {
-                LogError("unable to set x509 certificates and x509 ECC certificates");
-                result = __FAILURE__;
-            }
-            else
-            {
-                /*let's make a copy of this option*/
-                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509_ecc_aliaskey, value) != 0)
-                {
-                    LogError("unable to mallocAndStrcpy_s");
-                    result = __FAILURE__;
-                }
-                else
-                {
-                    result = 0;
-                }
-            }
-        }
-        else if (strcmp(OPTION_X509_ECC_CERT, optionName) == 0)
-        {
-            if (tls_io_instance->x509_ecc_cert != NULL)
-            {
-                LogError("unable to set more than once x509 options");
-                result = __FAILURE__;
-            }
-            else if (tls_io_instance->x509certificate != NULL || tls_io_instance->x509privatekey != NULL)
-            {
-                LogError("unable to set x509 certificates and x509 ECC certificates");
-                result = __FAILURE__;
-            }
-            else
-            {
-                /*let's make a copy of this option*/
-                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509_ecc_cert, value) != 0)
+                if (mallocAndStrcpy_s((char**)&tls_io_instance->x509_private_key, value) != 0)
                 {
                     LogError("unable to mallocAndStrcpy_s");
                     result = __FAILURE__;
