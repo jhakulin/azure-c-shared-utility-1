@@ -141,7 +141,7 @@ static int apple_tls_write(XIO_ENDPOINT_INSTANCE_HANDLE xio_endpoint_instance, c
         // in order to ensure that this cast is safe
         /* Codes_SRS_XIO_ENDPOINT_30_052: [ On success, xio_endpoint_write shall return the number of characters from buffer that are sent. ]*/
         result = (int)CFWriteStreamWrite(context->sockWrite, buffer, count);
-        if (result <= 0)
+        if (result < 0)
         {
             // The write did not succeed. It may be busy, or it may be broken
             CFErrorRef write_error = CFWriteStreamCopyError(context->sockWrite);
