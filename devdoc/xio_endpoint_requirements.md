@@ -159,6 +159,10 @@ int xio_endpoint_read(XIO_ENDPOINT_INSTANCE_HANDLE xio_endpoint_instance,
 
 **SRS_XIO_ENDPOINT_30_044: [** If no data is available `xio_endpoint_read` shall return 0. **]**
 
+If the remote host closes the connection, sockets usually report this as "end of file", which is not usually
+considered an error. However, it is an error in the context of the Azure IoT C SDK.
+**SRS_XIO_ENDPOINT_30_045: [** The `xio_endpoint_read` shall test for an "end of file" condition and treat it as an error. **]**
+
 ###   xio_endpoint_write
 
 Do not use this function name in your concrete implementation. Instead, use an appropriate static
