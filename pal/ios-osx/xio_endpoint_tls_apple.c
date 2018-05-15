@@ -124,7 +124,7 @@ static int apple_tls_read(XIO_ENDPOINT_INSTANCE_HANDLE xio_endpoint_instance, ui
         // The buffer_size is guaranteed by the calling framweork to be less than INT_MAX
         // in order to ensure that this cast is safe
         /* Codes_SRS_XIO_ENDPOINT_30_042: [ On success, xio_endpoint_read shall return the number of characters copied into buffer. ]*/
-        rcv_bytes = (int)CFReadStreamRead(context->sockRead, buffer, (CFIndex)(sizeof(buffer)));
+        rcv_bytes = (int)CFReadStreamRead(context->sockRead, buffer, (CFIndex)(buffer_size));
     }
     else
     {
