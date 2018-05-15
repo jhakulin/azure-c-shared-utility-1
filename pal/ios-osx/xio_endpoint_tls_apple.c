@@ -113,7 +113,13 @@ static int apple_tls_read(XIO_ENDPOINT_INSTANCE_HANDLE xio_endpoint_instance, ui
 {
     int rcv_bytes;
     APPLE_ENDPOINT_INSTANCE* context = (APPLE_ENDPOINT_INSTANCE*)xio_endpoint_instance;
-    if (CFReadStreamHasBytesAvailable(context->sockRead))
+    CFStreamStatus read_status = CFReadStreamGetStatus(context->sockRead);
+    if (read_status == kCFStreamStatusAtEnd)
+    {
+        LogInfo("Communications closed by host");
+        rcv_bytes = XIO_ASYNC_RESULT_FAILURE;
+    }
+    else if (CFReadStreamHasBytesAvailable(context->sockRead))
     {
         // The buffer_size is guaranteed by the calling framweork to be less than INT_MAX
         // in order to ensure that this cast is safe
