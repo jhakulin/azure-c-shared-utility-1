@@ -108,11 +108,11 @@ void xio_filter_destroy(XIO_FILTER_INSTANCE_HANDLE xio_filter);
 ###   xio_filter_open
 
 Do not use this function name in your concrete implementation. Instead, use an appropriate static
-function and expose it within a `XIO_FILTER_INTERFACE`. This function needs to store the 
+function and expose it within a `XIO_FILTER_INTERFACE`. 
+
+This function needs to store the 
 `on_received` and `on_received_context` for later use as specifed in `xio_filter_receive`.
 
-
-Implementation of `concrete_io_open`
 
 ```c
 XIO_ASYNC_RESULT xio_filter_open(XIO_FILTER_INSTANCE_HANDLE xio_filter_instance, 
@@ -128,9 +128,9 @@ XIO_ASYNC_RESULT xio_filter_open(XIO_FILTER_INSTANCE_HANDLE xio_filter_instance,
 
 **SRS_XIO_FILTER_30_023: [** On failure, `xio_filter_open` shall log an error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
-**SRS_XIO_FILTER_30_024: [** If `xio_filter_open` needs to be called again to complete the opening process, it shall return `XIO_ASYNC_RESULT_WAITING`. **]
+**SRS_XIO_FILTER_30_024: [** If `xio_filter_open` needs to be called again to complete the opening process, it shall return `XIO_ASYNC_RESULT_WAITING`. **]**
 
-**SRS_XIO_FILTER_30_025: [** If `xio_filter_open` shall store `on_received` and `on_received_context` for later use with `xio_filter_read`. **]
+**SRS_XIO_FILTER_30_025: [** If `xio_filter_open` shall store `on_received` and `on_received_context` for later use with `xio_filter_read`. **]**
 
 ###   xio_filter_close
 
@@ -168,7 +168,8 @@ int xio_filter_read(XIO_FILTER_INSTANCE_HANDLE xio_filter_instance);
 **SRS_XIO_FILTER_30_044: [** When no more is available `xio_filter_read` shall return `XIO_ASYNC_RESULT_WAITING`. **]**
 
 If the remote host closes the connection, sockets usually report this as "end of file", which is not usually
-considered an error. However, it is an error in the context of the Azure IoT C SDK.
+considered an error. However, it is a communications error in the context of the Azure IoT C SDK.
+
 **SRS_XIO_FILTER_30_045: [** The `xio_filter_read` shall test for an "end of file" condition and treat it as an error. **]**
 
 ###   xio_filter_write
