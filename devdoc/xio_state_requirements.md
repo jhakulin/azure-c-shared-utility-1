@@ -19,7 +19,17 @@ and option handling.
 
 The `xio_state` implements and export all the functions defined in `xio_state.h`. 
 ```c
-CONCRETE_IO_HANDLE xio_state_create(const XIO_ENDPOINT_INTERFACE* endpoint_interface, XIO_ENDPOINT_CONFIG_INTERFACE* xio_filter_config_interface, XIO_ENDPOINT_CONFIG_HANDLE xio_filter_config_instance);
+typedef enum XIO_SEND_QUEUE_BEHAVIOR_TAG
+{
+    XIO_SEND_QUEUE_BY_RETAINED_REFERENCE,
+    XIO_SEND_QUEUE_BY_ABANDONED_REFERENCE,
+    XIO_SEND_QUEUE_BY_VALUE
+} XIO_SEND_QUEUE_BEHAVIOR;
+
+CONCRETE_IO_HANDLE xio_state_create(const XIO_ENDPOINT_INTERFACE* endpoint_interface, 
+    XIO_SEND_QUEUE_BEHAVIOR send_queue_behavior,
+    XIO_ENDPOINT_CONFIG_INTERFACE* xio_filter_config_interface, 
+    XIO_ENDPOINT_CONFIG_HANDLE xio_filter_config_instance);
     
 // These functions replace the corresponding functions in your 
 // specific xio_get_interface_description
@@ -222,18 +232,18 @@ The phrase "enter XIO_STATE_STATE_EXT_OPENING" means the adapter will continute 
 ###   xio_state_create
 A specialized create function, `xio_state_create` is not used directly in interface descriptions.
 ```c
+
 CONCRETE_IO_HANDLE xio_state_create(const XIO_ENDPOINT_INTERFACE* endpoint_interface, 
+    XIO_SEND_QUEUE_BEHAVIOR send_queue_behavior,
     XIO_ENDPOINT_CONFIG_INTERFACE* xio_filter_config_interface, 
     XIO_ENDPOINT_CONFIG_HANDLE xio_filter_config_instance);
 ```
-
-
 
 **SRS_XIO_STATE_30_010: [** The `xio_state_create` shall allocate and initialize all necessary resources and return an instance of the `xio_state` in XIO_STATE_STATE_EXT_CLOSED. **]**
 
 **SRS_XIO_STATE_30_011: [** If any resource allocation fails, `xio_state_create` shall return NULL. **]**
 
-**SRS_XIO_STATE_30_013: [** If any of the input parameters is NULL, `xio_state_create` shall log an error and return NULL. **]**
+**SRS_XIO_STATE_30_013: [** If any of the pointer parameters is NULL, `xio_state_create` shall log an error and return NULL. **]**
 
 
 ###   xio_state_destroy
@@ -300,22 +310,40 @@ int xio_state_close_async(CONCRETE_IO_HANDLE xio_state_handle,
 
 ###   xio_state_send_async
 Implementation of `concrete_io_send`
+
+The `xio_state` component supports three different queuing behaviors for `xio_state_send_async`,
+These behaviors are determined by the `send_queue_behavior` value passed in to `xio_state_create':
+* `XIO_SEND_QUEUE_BY_RETAINED_REFERENCE` queues the `buffer` value by reference rather
+than by making a copy. The caller is responsible to keep the `buffer` data in existence
+until `on_send_complete` is called.
+* `XIO_SEND_QUEUE_BY_ABANDONED_REFERENCE` queues the `buffer` by reference and then 
+the `xio_state` component deletes `buffer` after calling `on_send_complete'.
+* `XIO_SEND_QUEUE_BY_VALUE` makes a copy of the data in `buffer` and then deletes that copy
+after calling `on_send_complete`.
+
+
+More lifetime management behavior of the supplied `buffer` is specified
+under [Data transmission behaviors](#data-transmission-behaviors)
 ```c
 int xio_state_send_async(CONCRETE_IO_HANDLE xio_state_handle, const void* buffer, 
     size_t size, ON_SEND_COMPLETE on_send_complete, void* callback_context);
 ```
 
-**SRS_XIO_STATE_30_060: [** If any of the `xio_state_handle`, `buffer`, or `on_send_complete` parameters is NULL, `xio_state_send_async` shall log an error and return `_FAILURE_`. **]**
+**SRS_XIO_STATE_30_060: [** If any of the `xio_state_handle`, `buffer`, or `on_send_complete` parameters is NULL, `xio_state_send_async` shall log an error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
-**SRS_XIO_STATE_30_067: [** If the `size` is 0, `xio_state_send_async` shall log the error and return `_FAILURE_`. **]**
+**SRS_XIO_STATE_30_067: [** If the `size` is 0, `xio_state_send_async` shall log the error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
-**SRS_XIO_STATE_30_065: [** If the adapter state is not XIO_STATE_STATE_EXT_OPEN, `xio_state_send_async` shall log an error and return `_FAILURE_`. **]**
-
-**SRS_XIO_STATE_30_064: [** If the supplied message cannot be enqueued for transmission, `xio_state_send_async` shall log an error and return `_FAILURE_`. **]**
+**SRS_XIO_STATE_30_065: [** If the adapter state is not XIO_STATE_STATE_EXT_OPEN, `xio_state_send_async` shall log an error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
 **SRS_XIO_STATE_30_066: [** On failure, `on_send_complete` shall not be called. **]**
 
-**SRS_XIO_STATE_30_063: [** On success, `xio_state_send_async` shall enqueue for transmission the `on_send_complete`, the `callback_context`, the `size`, and the contents of `buffer` and then return 0. **]**
+**SRS_XIO_STATE_30_068: [** On failure when `XIO_SEND_QUEUE_BY_ABANDONED_REFERENCE`, `xio_state_send_async` shall not delete the supplied buffer. **]**
+
+**SRS_XIO_STATE_30_064: [** If the supplied message cannot be enqueued for transmission, `xio_state_send_async` shall log an error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
+
+**SRS_XIO_STATE_30_063: [** On success, `xio_state_send_async` shall enqueue for transmission the `on_send_complete`, the `callback_context`, the `size`, and the contents of `buffer` and then return `XIO_ASYNC_RESULT_SUCCESS`. **]**
+
+**SRS_XIO_STATE_30_062: [** For `XIO_SEND_QUEUE_BY_VALUE`, `xio_state_send_async` shall make a copy of the `buffer` parameter. **]**
 
 
 ###   xio_state_dowork
@@ -366,9 +394,11 @@ The message needs to be dequeued before calling the callback because the callbac
 
 **SRS_XIO_STATE_30_096: [** If there are no enqueued messages available, `xio_state_dowork` shall do nothing. **]**
 
+**SRS_XIO_STATE_30_092: [** For `XIO_SEND_QUEUE_BY_ABANDONED_REFERENCE` or `XIO_SEND_QUEUE_BY_ABANDONED_REFERENCE`, `xio_state_dowork` shall delete the enqueued `buffer` after calling `on_send_complete`. **]**
+
 #### Data reception behaviors
 
-**SRS_XIO_STATE_30_100: [** The `xio_state_dowork` shall delegate recieve behavior to the `xio_filter` provided during `xio_state_open_async`. **]**
+**SRS_XIO_STATE_30_100: [** The `xio_state_dowork` shall delegate receive behavior to the `xio_filter` provided during `xio_state_open_async`. **]**
 
 **SRS_XIO_STATE_30_101: [** If the `xio_filter` returns a `XIO_ASYNC_RESULT_SUCCESS` or `XIO_ASYNC_RESULT_WAITING`, `xio_state_dowork` shall do nothing. **]**
 

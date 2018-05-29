@@ -161,11 +161,11 @@ int xio_filter_read(XIO_FILTER_INSTANCE_HANDLE xio_filter_instance);
 ```
 **SRS_XIO_FILTER_30_040: [** All parameters are guaranteed to be non-NULL by the calling `xio_state`, so concrete implementations shall not add redundant checking. **]**
 
-**SRS_XIO_FILTER_30_041: [** The `xio_filter_read` shall attempt to read from its underlying data source and report the results using the stored `on_received` and `on_received_context`. **]**
+**SRS_XIO_FILTER_30_041: [** The `xio_filter_read` shall repeatedly attempt to read from its underlying data source and report the results using the stored `on_received` and `on_received_context`. **]**
 
 **SRS_XIO_FILTER_30_043: [** On failure, `xio_filter_read` shall log an error and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
-**SRS_XIO_FILTER_30_044: [** If no data is available `xio_filter_read` shall return `XIO_ASYNC_RESULT_WAITING`. **]**
+**SRS_XIO_FILTER_30_044: [** When no more is available `xio_filter_read` shall return `XIO_ASYNC_RESULT_WAITING`. **]**
 
 If the remote host closes the connection, sockets usually report this as "end of file", which is not usually
 considered an error. However, it is an error in the context of the Azure IoT C SDK.
