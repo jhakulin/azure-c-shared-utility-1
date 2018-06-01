@@ -76,6 +76,7 @@ typedef struct TLS_IO_INSTANCE_TAG
     CFWriteStreamRef sockWrite;
     SINGLYLINKEDLIST_HANDLE pending_transmission_list;
     TLSIO_OPTIONS options;
+    bool no_reenter;
 } TLS_IO_INSTANCE;
 
 /* Codes_SRS_TLSIO_30_005: [ The phrase "enter TLSIO_STATE_EXT_ERROR" means the adapter shall call the on_io_error function and pass the on_io_error_context that was supplied in tlsio_open_async. ]*/
@@ -174,14 +175,15 @@ static void internal_close(TLS_IO_INSTANCE* tls_io_instance)
 
 static void tlsio_appleios_destroy(CONCRETE_IO_HANDLE tls_io)
 {
+    TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
     if (tls_io == NULL)
     {
         /* Codes_SRS_TLSIO_30_020: [ If tlsio_handle is NULL, tlsio_destroy shall do nothing. ]*/
         LogError("NULL tlsio");
     }
-    else
+    else if (!tls_io_instance->no_reenter)
     {
-        TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
+        tls_io_instance->no_reenter = true;
         if (tls_io_instance->tlsio_state != TLSIO_STATE_CLOSED)
         {
             /* Codes_SRS_TLSIO_30_022: [ If the adapter is in any state other than TLSIO_STATE_EX_CLOSED when tlsio_destroy is called, the adapter shall enter TLSIO_STATE_EX_CLOSING and then enter TLSIO_STATE_EX_CLOSED before completing the destroy process. ]*/
@@ -203,6 +205,7 @@ static void tlsio_appleios_destroy(CONCRETE_IO_HANDLE tls_io)
         }
 
         free(tls_io_instance);
+        // No need to set no_reenter to false because we don't exist anymore;
     }
 }
 
@@ -360,46 +363,44 @@ static int tlsio_appleios_open_async(CONCRETE_IO_HANDLE tls_io,
 static int tlsio_appleios_close_async(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
 {
     int result;
+    TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
 
-    if (tls_io == NULL)
+    if (tls_io == NULL || on_io_close_complete == NULL)
     {
         /* Codes_SRS_TLSIO_30_050: [ If the tlsio_handle parameter is NULL, tlsio_appleios_close_async shall log an error and return FAILURE. ]*/
-        LogError("NULL tlsio");
+        /* Codes_SRS_TLSIO_30_055: [ If the on_io_close_complete parameter is NULL, tlsio_appleios_close_async shall log an error and return FAILURE. ]*/
+        LogError("NULL parameter");
         result = __FAILURE__;
+    }
+    else if (!tls_io_instance->no_reenter)
+    {
+        tls_io_instance->no_reenter = true;
+        if (tls_io_instance->tlsio_state != TLSIO_STATE_OPEN &&
+            tls_io_instance->tlsio_state != TLSIO_STATE_ERROR)
+        {
+            /* Codes_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+            // LogInfo rather than LogError because this is an unusual but not erroneous situation
+            LogInfo("tlsio_appleios_close has been called when in neither TLSIO_STATE_OPEN nor TLSIO_STATE_ERROR.");
+        }
+
+        if (is_an_opening_state(tls_io_instance->tlsio_state))
+        {
+            /* Codes_SRS_TLSIO_30_057: [ On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call on_io_open_complete with the on_io_open_complete_context supplied in tlsio_open_async and IO_OPEN_CANCELLED. This callback shall be made before changing the internal state of the adapter. ]*/
+            tls_io_instance->on_open_complete(tls_io_instance->on_open_complete_context, IO_OPEN_CANCELLED);
+        }
+        // This adapter does not support asynchronous closing
+        /* Codes_SRS_TLSIO_30_056: [ On success the adapter shall enter TLSIO_STATE_EX_CLOSING. ]*/
+        /* Codes_SRS_TLSIO_30_051: [ On success, if the underlying TLS does not support asynchronous closing, then the adapter shall enter TLSIO_STATE_EX_CLOSED immediately after entering TLSIO_STATE_EX_CLOSING. ]*/
+        /* Codes_SRS_TLSIO_30_052: [ On success tlsio_close shall return 0. ]*/
+        internal_close(tls_io_instance);
+        on_io_close_complete(callback_context);
+        tls_io_instance->no_reenter = false;
+        result = 0;
     }
     else
     {
-        if (on_io_close_complete == NULL)
-        {
-            /* Codes_SRS_TLSIO_30_055: [ If the on_io_close_complete parameter is NULL, tlsio_appleios_close_async shall log an error and return FAILURE. ]*/
-            LogError("NULL on_io_close_complete");
-            result = __FAILURE__;
-        }
-        else
-        {
-            TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
-
-            if (tls_io_instance->tlsio_state != TLSIO_STATE_OPEN &&
-                tls_io_instance->tlsio_state != TLSIO_STATE_ERROR)
-            {
-                /* Codes_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
-                // LogInfo rather than LogError because this is an unusual but not erroneous situation
-                LogInfo("tlsio_appleios_close has been called when in neither TLSIO_STATE_OPEN nor TLSIO_STATE_ERROR.");
-            }
-
-            if (is_an_opening_state(tls_io_instance->tlsio_state))
-            {
-                /* Codes_SRS_TLSIO_30_057: [ On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call on_io_open_complete with the on_io_open_complete_context supplied in tlsio_open_async and IO_OPEN_CANCELLED. This callback shall be made before changing the internal state of the adapter. ]*/
-                tls_io_instance->on_open_complete(tls_io_instance->on_open_complete_context, IO_OPEN_CANCELLED);
-            }
-            // This adapter does not support asynchronous closing
-            /* Codes_SRS_TLSIO_30_056: [ On success the adapter shall enter TLSIO_STATE_EX_CLOSING. ]*/
-            /* Codes_SRS_TLSIO_30_051: [ On success, if the underlying TLS does not support asynchronous closing, then the adapter shall enter TLSIO_STATE_EX_CLOSED immediately after entering TLSIO_STATE_EX_CLOSING. ]*/
-            /* Codes_SRS_TLSIO_30_052: [ On success tlsio_close shall return 0. ]*/
-            internal_close(tls_io_instance);
-            on_io_close_complete(callback_context);
-            result = 0;
-        }
+        // Reentrency is not considered a failure
+        result = 0;
     }
     /* Codes_SRS_TLSIO_30_054: [ On failure, the adapter shall not call on_io_close_complete. ]*/
 
