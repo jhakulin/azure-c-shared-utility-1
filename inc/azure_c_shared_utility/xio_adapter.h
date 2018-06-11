@@ -15,20 +15,12 @@ extern "C" {
 
 #include "azure_c_shared_utility/xio.h"
 #include "azure_c_shared_utility/umock_c_prod.h"
+#include "azure_c_shared_utility/xio_async_result.h"
 
 // xio_adapter components combine with xio_state to form xio components
 
 typedef struct XIO_ADAPTER_INTERFACE_TAG* XIO_ADAPTER_INTERFACE_HANDLE;
 typedef struct XIO_ADAPTER_INSTANCE_TAG* XIO_ADAPTER_INSTANCE_HANDLE;
-
-typedef enum XIO_ASYNC_RESULT_TAG
-{
-    XIO_ASYNC_RESULT_FAILURE = 1,
-    XIO_ASYNC_RESULT_WAITING = -1,
-    XIO_ASYNC_RESULT_SUCCESS = 0
-} XIO_ASYNC_RESULT;
-
-#define XIO_ASYNC_RW_RESULT_FAILURE -1
 
 typedef XIO_ADAPTER_INSTANCE_HANDLE(*XIO_ADAPTER_CREATE)(void* create_parameters);
 typedef void(*XIO_ADAPTER_DESTROY)(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance);
@@ -46,7 +38,7 @@ MOCKABLE_FUNCTION(, XIO_ASYNC_RESULT, xio_adapter_open, XIO_ADAPTER_INSTANCE_HAN
 MOCKABLE_FUNCTION(, XIO_ASYNC_RESULT, xio_adapter_close, XIO_ADAPTER_INSTANCE_HANDLE, xio_adapter_instance);
 // xio_adapter_read sends any data it receives out the callback from xio_adapter_open
 MOCKABLE_FUNCTION(, XIO_ASYNC_RESULT, xio_adapter_read, XIO_ADAPTER_INSTANCE_HANDLE, xio_adapter_instance);
-// write returns 0 for waiting, non-zero for data transferred, or XIO_ASYNC_RW_RESULT_FAILURE
+// write returns 0 for waiting, non-zero for data transferred, or XIO_ASYNC_WRITE_RESULT_FAILURE
 MOCKABLE_FUNCTION(, int, xio_adapter_write, XIO_ADAPTER_INSTANCE_HANDLE, xio_adapter_instance, const uint8_t*, buffer, uint32_t, buffer_size);
 MOCKABLE_FUNCTION(, int, xio_adapter_setoption, XIO_ADAPTER_INSTANCE_HANDLE, xio_adapter_instance, const char*, optionName, const void*, value);
 MOCKABLE_FUNCTION(, OPTIONHANDLER_HANDLE, xio_adapter_retrieveoptions, XIO_ADAPTER_INSTANCE_HANDLE, xio_adapter_instance);

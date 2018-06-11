@@ -69,7 +69,7 @@ static int my_xio_adapter_write(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance
     ASSERT_ARE_EQUAL(size_t, (size_t)xio_adapter_instance, (size_t)&adapter_instance);
     if (buffer_size == SSL_FAIL_ME_SENT_MESSAGE_SIZE)
     {
-        result = XIO_ASYNC_RW_RESULT_FAILURE;
+        result = XIO_ASYNC_WRITE_RESULT_FAILURE;
     }
     else
     {

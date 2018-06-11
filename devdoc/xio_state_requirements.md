@@ -24,7 +24,7 @@ testing the feature.
 ## Exposed API
 
 The `xio_state` implements and export all the functions defined in `xio_state.h`. 
-```
+```c
 CONCRETE_IO_HANDLE xio_state_create(
     const XIO_ADAPTER_INTERFACE* adapter_interface, 
     void* io_create_parameters);
