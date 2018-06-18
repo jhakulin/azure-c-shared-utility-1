@@ -36,18 +36,15 @@ whether their implementation checks input parameters.
 ```c
 typedef enum XIO_ASYNC_RESULT_TAG
 {
-    XIO_ASYNC_RESULT_FAILURE = -1,
+    XIO_ASYNC_RESULT_FAILURE = 1,
     XIO_ASYNC_RESULT_WAITING = 0,
-    XIO_ASYNC_RESULT_SUCCESS = 1
+    XIO_ASYNC_RESULT_SUCCESS = -1
 } XIO_ASYNC_RESULT;
-
-#define XIO_ASYNC_WRITE_RESULT_FAILURE -1
 ```
  Each `xio_adapter` implements and export all the functions defined in [xio_adapter.h](/inc/azure_c_shared_utility/xio_adapter.h). 
 ```c
 typedef struct XIO_ADAPTER_INTERFACE_TAG* XIO_ADAPTER_INTERFACE_HANDLE;
 typedef struct XIO_ADAPTER_INSTANCE_TAG* XIO_ADAPTER_INSTANCE_HANDLE;
-
 
 
 typedef XIO_ADAPTER_INSTANCE_HANDLE(*XIO_ADAPTER_CREATE)(void);
@@ -71,7 +68,7 @@ XIO_ASYNC_RESULT xio_adapter_open(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instan
 XIO_ASYNC_RESULT xio_adapter_close(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance);
 XIO_ASYNC_RESULT xio_adapter_read(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance);
 // write returns 0 for waiting, non-zero for data transferred, 
-// or XIO_ASYNC_WRITE_RESULT_FAILURE
+// or XIO_ASYNC_RESULT_FAILURE
 int xio_adapter_write(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance, 
     const uint8_t* buffer, uint32_t buffer_size);
 
@@ -212,7 +209,7 @@ int xio_adapter_write(XIO_ADAPTER_INSTANCE_HANDLE xio_adapter_instance,
 number of characters from `buffer` that are written to the underlying data sink. **]**
 
 **SRS_XIO_ADAPTER_30_053: [** On failure, `xio_adapter_write` shall log an error 
-and return `XIO_ASYNC_WRITE_RESULT_FAILURE`. **]**
+and return `XIO_ASYNC_RESULT_FAILURE`. **]**
 
 **SRS_XIO_ADAPTER_30_054: [** If the underlying data sink is temporarily unable to 
 accept data, `xio_adapter_write` shall return 0. **]**
