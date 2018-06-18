@@ -4,6 +4,10 @@
 #ifndef XIO_ADAPTER_H
 #define XIO_ADAPTER_H
 
+#include "azure_c_shared_utility/xio.h"
+#include "azure_c_shared_utility/umock_c_prod.h"
+#include "azure_c_shared_utility/xio_async_result.h"
+
 #ifdef __cplusplus
 extern "C" {
 #include <cstddef>
@@ -12,10 +16,6 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 #endif /* __cplusplus */
-
-#include "azure_c_shared_utility/xio.h"
-#include "azure_c_shared_utility/umock_c_prod.h"
-#include "azure_c_shared_utility/xio_async_result.h"
 
 // xio_adapter components combine with xio_state to form xio components
 

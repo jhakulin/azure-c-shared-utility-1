@@ -283,7 +283,7 @@ BEGIN_TEST_SUITE(xio_state_unittests)
                     // Fail the doomed message
                     umock_c_reset_all_calls();
                     STRICT_EXPECTED_CALL(xio_adapter_read(&adapter_instance)).SetReturn(XIO_ASYNC_RESULT_WAITING);
-                    STRICT_EXPECTED_CALL(xio_adapter_write(&adapter_instance, IGNORED_PTR_ARG, g_message_doomed_size)).SetReturn(XIO_ASYNC_WRITE_RESULT_FAILURE);
+                    STRICT_EXPECTED_CALL(xio_adapter_write(&adapter_instance, IGNORED_PTR_ARG, g_message_doomed_size)).SetReturn(XIO_ASYNC_RESULT_FAILURE);
                     xio_state_dowork(result);
                     ASSERT_IO_SEND_CALLBACK(true, IO_OPEN_ERROR);
                 }
@@ -750,7 +750,7 @@ BEGIN_TEST_SUITE(xio_state_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(xio_adapter_read(&adapter_instance)).SetReturn(XIO_ASYNC_RESULT_WAITING);
-        STRICT_EXPECTED_CALL(xio_adapter_write(&adapter_instance, IGNORED_PTR_ARG, SSL_SHORT_SENT_MESSAGE_SIZE)).SetReturn(XIO_ASYNC_WRITE_RESULT_FAILURE);
+        STRICT_EXPECTED_CALL(xio_adapter_write(&adapter_instance, IGNORED_PTR_ARG, SSL_SHORT_SENT_MESSAGE_SIZE)).SetReturn(XIO_ASYNC_RESULT_FAILURE);
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
