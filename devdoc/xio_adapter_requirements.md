@@ -36,9 +36,9 @@ whether their implementation checks input parameters.
 ```c
 typedef enum XIO_ASYNC_RESULT_TAG
 {
-    XIO_ASYNC_RESULT_FAILURE = 1,
-    XIO_ASYNC_RESULT_WAITING = 0,
-    XIO_ASYNC_RESULT_SUCCESS = -1
+    XIO_ASYNC_RESULT_SUCCESS = 0
+    XIO_ASYNC_RESULT_WAITING = 1,
+    XIO_ASYNC_RESULT_FAILURE = -1,
 } XIO_ASYNC_RESULT;
 ```
  Each `xio_adapter` implements and export all the functions defined in [xio_adapter.h](/inc/azure_c_shared_utility/xio_adapter.h). 
