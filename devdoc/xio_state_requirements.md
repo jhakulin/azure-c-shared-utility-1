@@ -44,7 +44,6 @@ int xio_state_setoption(CONCRETE_IO_HANDLE xio, const char* optionName, const vo
 OPTIONHANDLER_HANDLE xio_state_retrieveoptions(CONCRETE_IO_HANDLE xio);
 
 ```
-**]**
 
 The following types from `xio.h` are also referenced in individual requirements.
 ```c
