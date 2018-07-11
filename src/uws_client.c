@@ -969,7 +969,7 @@ static int process_frame_fragment(UWS_CLIENT_INSTANCE *uws_client, size_t length
 
 static void on_underlying_io_bytes_received(void* context, const unsigned char* buffer, size_t size)
 {
-    printf("WebSocket received %d bytes.\n", size);
+    printf("WebSocket received %d bytes.\n", (int)size);
     /* Codes_SRS_UWS_CLIENT_01_415: [ If called with a NULL `context` argument, `on_underlying_io_bytes_received` shall do nothing. ]*/
     if (context != NULL)
     {
