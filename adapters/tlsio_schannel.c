@@ -367,7 +367,6 @@ static void send_client_hello(TLS_IO_INSTANCE* tls_io_instance)
 
 static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT io_open_result, char* errorReason)
 {
-    (void)errorReason;
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
 
     if (tls_io_instance->tlsio_state != TLSIO_STATE_OPENING_UNDERLYING_IO)
@@ -382,7 +381,7 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT io_open
             tls_io_instance->tlsio_state = TLSIO_STATE_NOT_OPEN;
             if (tls_io_instance->on_io_open_complete != NULL)
             {
-                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, errorReason);
             }
         }
         else
