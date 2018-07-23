@@ -613,7 +613,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
                         if (tls_io_instance->on_io_open_complete != NULL)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "receive:SEC_E_INCOMPLETE_MESSAGE: resize fails");
                         }
                     }
 
@@ -636,7 +636,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
                         if (tls_io_instance->on_io_open_complete != NULL)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "receive:SEC_E_OK: set buffer fails");
                         }
                     }
                     else
@@ -693,7 +693,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
                         if (tls_io_instance->on_io_open_complete != NULL)
                         {
-                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "receive:continue: send error");
                         }
                     }
                     else
@@ -715,7 +715,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                             tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
                             if (tls_io_instance->on_io_open_complete != NULL)
                             {
-                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                                tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "receive:continue: set buffer fails");
                             }
                         }
                         else
@@ -731,7 +731,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
                     if (tls_io_instance->on_io_open_complete != NULL)
                     {
-                        tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+                        tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "receive: SEC_E_UNTRUSTED_ROOT");
                     }
                     break;
                 default:
@@ -943,7 +943,7 @@ static void on_underlying_io_error(void* context)
         tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
         if (tls_io_instance->on_io_open_complete != NULL)
         {
-            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
+            tls_io_instance->on_io_open_complete(tls_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, "on_underlying_io_error: unexpected");
         }
         break;
 
