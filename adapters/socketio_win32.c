@@ -249,7 +249,8 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
 {
     int result;
     // Todo: use properly defined macro for buffer size.
-#define SOCKET_ERROR_BUFFER_SIZE 1024
+    // (64 deliberately picked small)
+#define SOCKET_ERROR_BUFFER_SIZE 64
     char socketErrorMsg[SOCKET_ERROR_BUFFER_SIZE];
     socketErrorMsg[0] = '\0';
 
@@ -257,7 +258,7 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
     if (socket_io == NULL)
     {
         snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Invalid argument: SOCKET_IO_INSTANCE is NULL");
-        LogError(socketErrorMsg); 
+        LogError(socketErrorMsg);
         result = __FAILURE__;
     }
     else

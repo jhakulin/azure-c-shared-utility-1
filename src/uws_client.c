@@ -67,6 +67,9 @@ typedef struct WS_PENDING_SEND_TAG
     UWS_CLIENT_HANDLE uws_client;
 } WS_PENDING_SEND;
 
+
+#define COUNT_OF(a) (sizeof(a) / sizeof((a)[0]))
+
 typedef struct UWS_CLIENT_INSTANCE_TAG
 {
     SINGLYLINKEDLIST_HANDLE pending_sends;
@@ -93,7 +96,8 @@ typedef struct UWS_CLIENT_INSTANCE_TAG
     size_t fragment_buffer_count;
     unsigned char fragmented_frame_type;
     //Todo: use proper way to propogate socket error message.
-    char socketErrorReason[1024];
+    // (64 intentionally picked small)
+    char socketErrorReason[64 + 1];
 } UWS_CLIENT_INSTANCE;
 
 /* Codes_SRS_UWS_CLIENT_01_360: [ Connection confidentiality and integrity is provided by running the WebSocket Protocol over TLS (wss URIs). ]*/
@@ -161,6 +165,9 @@ UWS_CLIENT_HANDLE uws_client_create(const char* hostname, unsigned int port, con
                     }
                     else
                     {
+                        result->socketErrorReason[0] = '\0';
+                        result->socketErrorReason[COUNT_OF(result->socketErrorReason)] = '\0';
+
                         /* Codes_SRS_UWS_CLIENT_01_017: [ `uws_client_create` shall create a pending send IO list that is to be used to queue send packets by calling `singlylinkedlist_create`. ]*/
                         result->pending_sends = singlylinkedlist_create();
                         if (result->pending_sends == NULL)
@@ -400,6 +407,9 @@ UWS_CLIENT_HANDLE uws_client_create_with_io(const IO_INTERFACE_DESCRIPTION* io_i
                     }
                     else
                     {
+                        result->socketErrorReason[0] = '\0';
+                        result->socketErrorReason[COUNT_OF(result->socketErrorReason)] = '\0';
+
                         /* Codes_SRS_UWS_CLIENT_01_530: [ `uws_client_create_with_io` shall create a pending send IO list that is to be used to queue send packets by calling `singlylinkedlist_create`. ]*/
                         result->pending_sends = singlylinkedlist_create();
                         if (result->pending_sends == NULL)
@@ -667,7 +677,12 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_re
     {
         if (errorReason != NULL)
         {
-            strncpy(uws_client->socketErrorReason, errorReason, 1024);
+            // Note: socketErrorReasons has an extra element which is always equal to '\0'
+            strncpy(uws_client->socketErrorReason, errorReason, COUNT_OF(uws_client->socketErrorReason));
+        }
+        else
+        {
+            uws_client->socketErrorReason[0] = '\0';
         }
 
         switch (uws_client->uws_state)
