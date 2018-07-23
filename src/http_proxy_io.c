@@ -231,7 +231,7 @@ static void indicate_open_complete_error_and_close(HTTP_PROXY_IO_INSTANCE* http_
 {
     http_proxy_io_instance->http_proxy_io_state = HTTP_PROXY_IO_STATE_CLOSED;
     (void)xio_close(http_proxy_io_instance->underlying_io, NULL, NULL);
-    http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+    http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
 }
 
 // This callback usage needs to be either verified and commented or integrated into 
@@ -242,8 +242,9 @@ static void unchecked_on_send_complete(void* context, IO_SEND_RESULT send_result
     (void)send_result;
 }
 
-static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result)
+static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result, char* errorReason)
 {
+    (void)errorReason;
     if (context == NULL)
     {
         /* Codes_SRS_HTTP_PROXY_IO_01_081: [ `on_underlying_io_open_complete` called with NULL context shall do nothing. ]*/
@@ -285,7 +286,7 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_re
                 LogError("Underlying IO open failed");
                 http_proxy_io_instance->http_proxy_io_state = HTTP_PROXY_IO_STATE_CLOSED;
                 (void)xio_close(http_proxy_io_instance->underlying_io, NULL, NULL);
-                http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_CANCELLED);
+                http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_CANCELLED, NULL);
                 break;
 
             case IO_OPEN_OK:
@@ -680,7 +681,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                         /* Codes_SRS_HTTP_PROXY_IO_01_073: [ Once a success status code was parsed, the IO shall be OPEN. ]*/
                         http_proxy_io_instance->http_proxy_io_state = HTTP_PROXY_IO_STATE_OPEN;
                         /* Codes_SRS_HTTP_PROXY_IO_01_070: [ When a success status code is parsed, the `on_open_complete` callback shall be triggered with `IO_OPEN_OK`, passing also the `on_open_complete_context` argument as `context`. ]*/
-                        http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_OK);
+                        http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_OK, NULL);
 
                         if (length_remaining > 0)
                         {
@@ -789,7 +790,7 @@ static int http_proxy_io_close(CONCRETE_IO_HANDLE http_proxy_io, ON_IO_CLOSE_COM
             /* Codes_SRS_HTTP_PROXY_IO_01_053: [ `http_proxy_io_close` while OPENING shall trigger the `on_io_open_complete` callback with `IO_OPEN_CANCELLED`. ]*/
             http_proxy_io_instance->http_proxy_io_state = HTTP_PROXY_IO_STATE_CLOSED;
             (void)xio_close(http_proxy_io_instance->underlying_io, NULL, NULL);
-            http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_CANCELLED);
+            http_proxy_io_instance->on_io_open_complete(http_proxy_io_instance->on_io_open_complete_context, IO_OPEN_CANCELLED, NULL);
 
             /* Codes_SRS_HTTP_PROXY_IO_01_022: [ `http_proxy_io_close` shall close the HTTP proxy IO and on success it shall return 0. ]*/
             result = 0;

@@ -248,18 +248,24 @@ void socketio_destroy(CONCRETE_IO_HANDLE socket_io)
 int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
 {
     int result;
+    // Todo: use properly defined macro for buffer size.
+#define SOCKET_ERROR_BUFFER_SIZE 1024
+    char socketErrorMsg[SOCKET_ERROR_BUFFER_SIZE];
+    socketErrorMsg[0] = '\0';
 
     SOCKET_IO_INSTANCE* socket_io_instance = (SOCKET_IO_INSTANCE*)socket_io;
     if (socket_io == NULL)
     {
-        LogError("Invalid argument: SOCKET_IO_INSTANCE is NULL");
+        snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Invalid argument: SOCKET_IO_INSTANCE is NULL");
+        LogError(socketErrorMsg); 
         result = __FAILURE__;
     }
     else
     {
         if (socket_io_instance->io_state != IO_STATE_CLOSED)
         {
-            LogError("Failure: socket state is not closed.");
+            snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Failure: socket state is not closed.");
+            LogError(socketErrorMsg);
             result = __FAILURE__;
         }
         else if (socket_io_instance->socket != INVALID_SOCKET)
@@ -279,7 +285,8 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
             socket_io_instance->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
             if (socket_io_instance->socket == INVALID_SOCKET)
             {
-                LogError("Failure: socket create failure %d.", WSAGetLastError());
+                snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Failure: socket create failure %d.", WSAGetLastError());
+                LogError(socketErrorMsg);
                 result = __FAILURE__;
             }
             else
@@ -294,7 +301,8 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
                 sprintf(portString, "%u", socket_io_instance->port);
                 if (getaddrinfo(socket_io_instance->hostname, portString, &addrHint, &addrInfo) != 0)
                 {
-                    LogError("Failure: getaddrinfo failure %d.", WSAGetLastError());
+                    snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Failure: getaddrinfo failure %d.", WSAGetLastError());
+                    LogError(socketErrorMsg);
                     (void)closesocket(socket_io_instance->socket);
                     socket_io_instance->socket = INVALID_SOCKET;
                     result = __FAILURE__;
@@ -305,14 +313,16 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
 
                     if (connect(socket_io_instance->socket, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) != 0)
                     {
-                        LogError("Failure: connect failure %d.", WSAGetLastError());
+                        snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Failure: connect failure %d.", WSAGetLastError());
+                        LogError(socketErrorMsg);
                         (void)closesocket(socket_io_instance->socket);
                         socket_io_instance->socket = INVALID_SOCKET;
                         result = __FAILURE__;
                     }
                     else if (ioctlsocket(socket_io_instance->socket, FIONBIO, &iMode) != 0)
                     {
-                        LogError("Failure: ioctlsocket failure %d.", WSAGetLastError());
+                        snprintf(socketErrorMsg, SOCKET_ERROR_BUFFER_SIZE, "Failure: ioctlsocket failure %d.", WSAGetLastError());
+                        LogError(socketErrorMsg);
                         (void)closesocket(socket_io_instance->socket);
                         socket_io_instance->socket = INVALID_SOCKET;
                         result = __FAILURE__;
@@ -338,7 +348,7 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
 
     if (on_io_open_complete != NULL)
     {
-        on_io_open_complete(on_io_open_complete_context, result == 0 ? IO_OPEN_OK : IO_OPEN_ERROR);
+        on_io_open_complete(on_io_open_complete_context, result == 0 ? IO_OPEN_OK : IO_OPEN_ERROR, socketErrorMsg);
     }
 
     return result;
