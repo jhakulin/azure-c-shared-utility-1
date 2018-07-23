@@ -92,6 +92,8 @@ typedef struct UWS_CLIENT_INSTANCE_TAG
     unsigned char* fragment_buffer;
     size_t fragment_buffer_count;
     unsigned char fragmented_frame_type;
+    //Todo: use proper way to propogate socket error message.
+    char socketErrorReason[1024];
 } UWS_CLIENT_INSTANCE;
 
 /* Codes_SRS_UWS_CLIENT_01_360: [ Connection confidentiality and integrity is provided by running the WebSocket Protocol over TLS (wss URIs). ]*/
@@ -569,7 +571,7 @@ static void indicate_ws_open_complete_error(UWS_CLIENT_INSTANCE* uws_client, WS_
 {
     /* Codes_SRS_UWS_CLIENT_01_409: [ After any error is indicated by `on_ws_open_complete`, a subsequent `uws_client_open_async` shall be possible. ]*/
     uws_client->uws_state = UWS_STATE_CLOSED;
-    uws_client->on_ws_open_complete(uws_client->on_ws_open_complete_context, ws_open_result);
+    uws_client->on_ws_open_complete(uws_client->on_ws_open_complete_context, ws_open_result, uws_client->socketErrorReason);
 }
 
 static void indicate_ws_open_complete_error_and_close(UWS_CLIENT_INSTANCE* uws_client, WS_OPEN_RESULT ws_open_result)
@@ -653,7 +655,7 @@ static void indicate_ws_error_and_close(UWS_CLIENT_INSTANCE* uws_client, WS_ERRO
     uws_client->on_ws_error(uws_client->on_ws_error_context, error_code);
 }
 
-static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result)
+static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result, char* errorReason)
 {
     UWS_CLIENT_HANDLE uws_client = (UWS_CLIENT_HANDLE)context;
     /* Codes_SRS_UWS_CLIENT_01_401: [ If `on_underlying_io_open_complete` is called with a NULL context, `on_underlying_io_open_complete` shall do nothing. ]*/
@@ -663,6 +665,11 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_re
     }
     else
     {
+        if (errorReason != NULL)
+        {
+            strncpy(uws_client->socketErrorReason, errorReason, 1024);
+        }
+
         switch (uws_client->uws_state)
         {
         default:
@@ -1101,7 +1108,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
 
                             /* Codes_SRS_UWS_CLIENT_01_065: [ When the client is to _Establish a WebSocket Connection_ given a set of (/host/, /port/, /resource name/, and /secure/ flag), along with a list of /protocols/ and /extensions/ to be used, and an /origin/ in the case of web browsers, it MUST open a connection, send an opening handshake, and read the server's handshake in response. ]*/
                             /* Codes_SRS_UWS_CLIENT_01_115: [ If the server's response is validated as provided for above, it is said that _The WebSocket Connection is Established_ and that the WebSocket Connection is in the OPEN state. ]*/
-                            uws_client->on_ws_open_complete(uws_client->on_ws_open_complete_context, WS_OPEN_OK);
+                            uws_client->on_ws_open_complete(uws_client->on_ws_open_complete_context, WS_OPEN_OK, NULL);
 
                             decode_stream = 1;
                         }

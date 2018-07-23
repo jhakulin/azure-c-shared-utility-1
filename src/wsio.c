@@ -58,7 +58,7 @@ static void indicate_error(WSIO_INSTANCE* wsio_instance)
 
 static void indicate_open_complete(WSIO_INSTANCE* ws_io_instance, IO_OPEN_RESULT open_result)
 {
-    ws_io_instance->on_io_open_complete(ws_io_instance->on_io_open_complete_context, open_result);
+    ws_io_instance->on_io_open_complete(ws_io_instance->on_io_open_complete_context, open_result, NULL);
 }
 
 static void complete_send_item(LIST_ITEM_HANDLE pending_io_list_item, IO_SEND_RESULT io_send_result)
@@ -302,8 +302,9 @@ void wsio_destroy(CONCRETE_IO_HANDLE ws_io)
     }
 }
 
-static void on_underlying_ws_open_complete(void* context, WS_OPEN_RESULT open_result)
+static void on_underlying_ws_open_complete(void* context, WS_OPEN_RESULT open_result, char* errorReason)
 {
+    (void)errorReason;
     if (context == NULL)
     {
         /* Codes_SRS_WSIO_01_138: [ When `on_underlying_ws_open_complete` is called with a NULL context, it shall do nothing. ]*/
@@ -462,7 +463,7 @@ static void on_underlying_ws_error(void* context, WS_ERROR ws_error)
         if (wsio_instance->io_state == IO_STATE_OPENING)
         {
             /* Codes_SRS_WSIO_01_123: [ When calling `on_io_error`, the `on_io_error_context` argument given in `wsio_open` shall be passed to the callback `on_io_error`. ]*/
-            wsio_instance->on_io_open_complete(wsio_instance->on_io_open_complete_context, IO_OPEN_ERROR);
+            wsio_instance->on_io_open_complete(wsio_instance->on_io_open_complete_context, IO_OPEN_ERROR, NULL);
             wsio_instance->io_state = IO_STATE_NOT_OPEN;
         }
         else
