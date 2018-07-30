@@ -302,10 +302,31 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
                 else
                 {
                     u_long iMode = 1;
+                    bool connectFailed = false;
 
                     if (connect(socket_io_instance->socket, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) != 0)
                     {
-                        LogError("Failure: connect failure %d.", WSAGetLastError());
+                        int lastError = WSAGetLastError();
+                        connectFailed = true;
+
+                        LogError("Failure: connect failure %d.", lastError);
+
+                        if (lastError == WSAETIMEDOUT || lastError == WSAECONNREFUSED)
+                        {
+                            // See https://blog.stephencleary.com/2009/05/error-handling.html
+                            if (connect(socket_io_instance->socket, addrInfo->ai_addr, (int)addrInfo->ai_addrlen) != 0)
+                            {
+                                LogError("Failure: connect failure 2nd try %d.", WSAGetLastError());
+                            }
+                            else
+                            {
+                                LogInfo("2nd time connect() attempt succeeded after error %d", lastError);
+                                connectFailed = false;
+                            }
+                        }
+                    }
+
+                    if (connectFailed) {
                         (void)closesocket(socket_io_instance->socket);
                         socket_io_instance->socket = INVALID_SOCKET;
                         result = __FAILURE__;
