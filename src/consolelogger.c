@@ -95,7 +95,7 @@ static char* lastErrorToString(DWORD lastError)
                 *whereAreThey = L'\0';
             }
 
-            result = printf_alloc("GetLastError()==0X%x (%s)", lastError, temp);
+            result = printf_alloc("GetLastError()==0X%x (%S)", lastError, temp);
 
             if (result == NULL)
             {
@@ -227,4 +227,5 @@ void consolelogger_log(LOG_CATEGORY log_category, const char* file, const char* 
         (void)printf("\r\n");
     }
 }
+
 
