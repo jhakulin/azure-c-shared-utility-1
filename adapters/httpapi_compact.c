@@ -330,7 +330,7 @@ void HTTPAPI_CloseConnection(HTTP_HANDLE handle)
     }
 }
 
-static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
+static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result, char* errorReason)
 {
     HTTP_HANDLE_DATA* http_instance = (HTTP_HANDLE_DATA*)context;
 
