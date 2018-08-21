@@ -892,8 +892,8 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
 #else
 static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
 {
-    (void)tlsInstance;
-    logInfo("load_system_store is not implemented on non-windows platforms");
+    (void)(tls_io_instance);
+    LogInfo("load_system_store is not implemented on non-windows platforms");
     return 0;
 }
 #endif
