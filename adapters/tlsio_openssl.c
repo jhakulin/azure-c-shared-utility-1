@@ -844,16 +844,20 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
         L"ROOT");
     if(hSysStore)
     {
-        LogInfo("The system store was created successfully.");
+        LogInfo("The system store was opened successfully.");
     }
     else
     {
-        LogInfo("An error occurred during creation of the system store!");
+        LogInfo("An error occurred during opening of the system store!");
         return -1;
     }
     // load all the certificates into the openSSL cert store
     while (1)
     {
+        /*
+        To free a context obtained by a find or enumerate function, either pass it in as the previous context parameter to a subsequent invocation of the function,
+        or call the appropriate free function. --from MSDN
+        */
         pContext = CertEnumCertificatesInStore(hSysStore, pContext);
         if (!pContext)
         {
@@ -873,16 +877,8 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
             }
             X509_free(x509);
         }
-    }
-    /*
-      To free a context obtained by a find or enumerate function, either pass it in as the previous context parameter to a subsequent invocation of the function,
-      or call the appropriate free function. --from MSDN
-    */
-    if (pContext)
-    {
-        CertFreeCertificateContext(pContext);
-    }
-    if (hSysStore)
+    }    
+    if(hSysStore)
     {
         CertCloseStore(hSysStore, 0);
     }
