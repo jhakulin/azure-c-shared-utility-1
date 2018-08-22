@@ -166,7 +166,7 @@ UWS_CLIENT_HANDLE uws_client_create(const char* hostname, unsigned int port, con
                     else
                     {
                         result->socketErrorReason[0] = '\0';
-                        result->socketErrorReason[COUNT_OF(result->socketErrorReason)] = '\0';
+                        result->socketErrorReason[COUNT_OF(result->socketErrorReason) - 1] = '\0';
 
                         /* Codes_SRS_UWS_CLIENT_01_017: [ `uws_client_create` shall create a pending send IO list that is to be used to queue send packets by calling `singlylinkedlist_create`. ]*/
                         result->pending_sends = singlylinkedlist_create();
@@ -408,7 +408,7 @@ UWS_CLIENT_HANDLE uws_client_create_with_io(const IO_INTERFACE_DESCRIPTION* io_i
                     else
                     {
                         result->socketErrorReason[0] = '\0';
-                        result->socketErrorReason[COUNT_OF(result->socketErrorReason)] = '\0';
+                        result->socketErrorReason[COUNT_OF(result->socketErrorReason) - 1] = '\0';
 
                         /* Codes_SRS_UWS_CLIENT_01_530: [ `uws_client_create_with_io` shall create a pending send IO list that is to be used to queue send packets by calling `singlylinkedlist_create`. ]*/
                         result->pending_sends = singlylinkedlist_create();

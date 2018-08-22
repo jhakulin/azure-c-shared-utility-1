@@ -334,6 +334,8 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result, char*
 {
     HTTP_HANDLE_DATA* http_instance = (HTTP_HANDLE_DATA*)context;
 
+    (void)errorReason;
+
     if (http_instance != NULL)
     {
         if (open_result == IO_OPEN_OK)
