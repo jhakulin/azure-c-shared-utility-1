@@ -711,9 +711,11 @@ static void on_underlying_io_close_complete(void* context)
     close_openssl_instance(tls_io_instance);
 }
 
-static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result)
+static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_result, char *errorString)
 {
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
+
+    (void)errorString;
 
     if (tls_io_instance->tlsio_state == TLSIO_STATE_OPENING_UNDERLYING_IO)
     {
