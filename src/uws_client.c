@@ -678,7 +678,7 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT open_re
         if (errorReason != NULL)
         {
             // Note: socketErrorReason has an extra element which is always equal to '\0'
-            strncpy(uws_client->socketErrorReason, errorReason, COUNT_OF(uws_client->socketErrorReason));
+            strncpy(uws_client->socketErrorReason, errorReason, COUNT_OF(uws_client->socketErrorReason) - 1);
         }
         else
         {
