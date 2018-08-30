@@ -698,6 +698,33 @@ HTTPAPI_RESULT HTTPAPI_SetOption(HTTP_HANDLE handle, const char* optionName, con
             httpHandleData->verbose = *(const long*)value;
             result = HTTPAPI_OK;
         }
+        else if (strcmp(OPTION_TLS_VERSION, optionName) == 0)
+        {
+            long version = *(const long*)value;
+            long curl_version;
+
+            result = HTTPAPI_OK;
+            switch (version) {
+            case OPTION_TLS_VERSION_1_0:
+                curl_version = CURL_SSLVERSION_TLSv1_0;
+                break;
+            case OPTION_TLS_VERSION_1_1:
+                curl_version = CURL_SSLVERSION_TLSv1_1;
+                break;
+            case OPTION_TLS_VERSION_1_2:
+                curl_version = CURL_SSLVERSION_TLSv1_2;
+                break;
+            default:
+                result = HTTPAPI_INVALID_ARG;
+                LogError("unknown value %d for option %s", version, optionName);
+            };
+
+            if ((result == HTTPAPI_OK) && (curl_easy_setopt(httpHandleData->curl, CURLOPT_SSLVERSION, curl_version) != CURLE_OK))
+            {
+                LogError("unable to curl_easy_setopt");
+                result = HTTPAPI_ERROR;
+            }
+        }
         else if (strcmp(SU_OPTION_X509_PRIVATE_KEY, optionName) == 0 || strcmp(OPTION_X509_ECC_KEY, optionName) == 0)
         {
             httpHandleData->x509privatekey = value;
