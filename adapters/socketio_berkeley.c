@@ -947,7 +947,9 @@ void socketio_dowork(CONCRETE_IO_HANDLE socket_io)
             ssize_t received = 0;
             do
             {
+                printf("receive start for %d\n", (int)socket_io_instance->socket);
                 received = recv(socket_io_instance->socket, socket_io_instance->recv_bytes, RECEIVE_BYTES_VALUE, 0);
+                printf("receive result %d\n", (int)received);
                 if (received > 0)
                 {
                     if (socket_io_instance->on_bytes_received != NULL)
