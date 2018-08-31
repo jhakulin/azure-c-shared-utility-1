@@ -138,6 +138,8 @@ static char* base32_encode_impl(const unsigned char* source, size_t src_size)
                     break;
             }
 
+#pragma warning( push )
+#pragma warning( disable : 6386 ) // Buffer overrun while writing to 'result':  the writable size is 'output_len+1' bytes, but '2' bytes might be written.
             /* Codes_SRS_BASE32_07_011: [ base32_encode_impl shall then map the 5 bit chunks into one of the BASE32 values (a-z,2,3,4,5,6,7) values. ] */
             result[result_len++] = BASE32_VALUES[pos1];
             result[result_len++] = BASE32_VALUES[pos2];
@@ -147,6 +149,7 @@ static char* base32_encode_impl(const unsigned char* source, size_t src_size)
             result[result_len++] = BASE32_VALUES[pos6];
             result[result_len++] = BASE32_VALUES[pos7];
             result[result_len++] = BASE32_VALUES[pos8];
+#pragma warning( pop )
         }
     }
     return result;
@@ -322,7 +325,15 @@ char* Base32_Encode_Bytes(const unsigned char* source, size_t size)
     {
         /* Codes_SRS_BASE32_07_005: [ If size is 0 Base32_Encode shall return an empty string. ] */
         result = malloc(1);
-        strcpy(result, "");
+        if (result == NULL)
+        {
+            /* Codes_SRS_BASE32_07_014: [ Upon failure Base32_Encode_Bytes shall return NULL. ] */
+            LogError("encoding for zero-size input failed.");
+        }
+        else
+        {
+            strcpy(result, "");
+        }
     }
     else
     {
