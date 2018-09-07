@@ -97,7 +97,9 @@ STRING_HANDLE platform_get_platform_info(void)
     memset(&osvi, 0, sizeof(osvi));
     osvi.dwOSVersionInfoSize = sizeof(osvi);
 #pragma warning(disable:4996)
+#pragma warning(disable:28159) // warning C28159 : Consider using another IsWindows* instead
     if (GetVersionEx(&osvi))
+#pragma warning(default:28159)
     {
         DWORD product_type;
         if (GetProductInfo(osvi.dwMajorVersion, osvi.dwMinorVersion, 0, 0, &product_type))
@@ -108,7 +110,9 @@ STRING_HANDLE platform_get_platform_info(void)
 
     if (result == NULL)
     {
+#pragma warning(disable:28159) // warning C28159 : Consider using another IsWindows* instead
         DWORD dwVersion = GetVersion();
+#pragma warning(default:28159)
         result = STRING_construct_sprintf("(native; WindowsProduct:Windows NT %d.%d; %s)", LOBYTE(LOWORD(dwVersion)), HIBYTE(LOWORD(dwVersion)), arch);
     }
 #pragma warning(default:4996)

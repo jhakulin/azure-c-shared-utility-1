@@ -294,7 +294,7 @@ int socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_c
                 addrHint.ai_family = AF_INET;
                 addrHint.ai_socktype = SOCK_STREAM;
                 addrHint.ai_protocol = 0;
-                sprintf(portString, "%u", socket_io_instance->port);
+                sprintf(portString, "%d", socket_io_instance->port);
                 if (getaddrinfo(socket_io_instance->hostname, portString, &addrHint, &addrInfo) != 0)
                 {
                     open_result_detailed.code = WSAGetLastError();

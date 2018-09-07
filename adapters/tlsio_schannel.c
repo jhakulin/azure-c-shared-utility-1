@@ -746,7 +746,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     {
                         LPVOID srcText = NULL;
                         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)srcText, 0, NULL) > 0)
+                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&srcText, 0, NULL) > 0)
                         {
                             LogError("[%#x] %s", status, (LPTSTR)srcText);
                             LocalFree(srcText);
@@ -908,7 +908,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
                     {
                         LPVOID srcText = NULL;
                         if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
-                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)srcText, 0, NULL) > 0)
+                            status, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&srcText, 0, NULL) > 0)
                         {
                             LogError("[%#x] %s", status, (LPTSTR)srcText);
                             LocalFree(srcText);
