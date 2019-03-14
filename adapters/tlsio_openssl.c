@@ -836,8 +836,10 @@ static int load_cert_crl_http(
     BIO *bio = NULL;
     OCSP_REQ_CTX *rctx = NULL;
     int use_ssl, rv = 0;
+    LogInfo("entering load_cert_crl_http\n");
     if (!OCSP_parse_url(url, &host, &port, &path, &use_ssl))
     {
+        LogInfo("parse url failed\n");
         goto error;
     }
 
@@ -1173,6 +1175,7 @@ static X509_CRL *load_crl(const char *source, int format)
 {
     X509_CRL *x = NULL;
     BIO *in = NULL;
+    LogInfo("entering load_crl\n");
 
     if (format == FORMAT_HTTP)
     {
@@ -1294,8 +1297,15 @@ static const char *get_dp_url(DIST_POINT *dp)
     int i, gtype;
     ASN1_STRING *uri;
 
-    if (!dp->distpoint || dp->distpoint->type != 0)
+    if (!dp->distpoint)
     {
+        LogInfo("returning, distpoint is null\n");
+        return NULL;
+    }
+
+    if (dp->distpoint->type != 0)
+    {
+        LogInfo("returning, distpoint->type is %d\n", dp->distpoint->type);
         return NULL;
     }
 
@@ -1306,6 +1316,9 @@ static const char *get_dp_url(DIST_POINT *dp)
         gen = sk_GENERAL_NAME_value(gens, i);
         uri = GENERAL_NAME_get0_value(gen, &gtype);
 
+        LogInfo("checking name %i - gtype %d - length %d\n",
+                i, gtype, ASN1_STRING_length(uri));
+
         if (gtype == GEN_URI && ASN1_STRING_length(uri) > 6)
         {
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
@@ -1313,6 +1326,7 @@ static const char *get_dp_url(DIST_POINT *dp)
 #else
             char *uptr = (char *)ASN1_STRING_data(uri);
 #endif
+            LogInfo("checking name %s\n", uptr);
             if (!strncmp(uptr, "http://", 7))
             {
                 return uptr;
@@ -1370,8 +1384,10 @@ static int load_cert_crl_file(X509 *cert, const char* suffix, X509_CRL **pCrl)
         NULL == (prefix = getenv("TEMP")) &&
         NULL == (prefix = getenv("TMPDIR")))
     {
+        LogInfo("will not use CRL cache directory\n");
         return 0;
     }
+    LogInfo("using CRL cache directory %s\n", prefix);
 
     // we need the issuer hash to find the file on disk
     X509_NAME *issuer_cert = cert ? X509_get_issuer_name(cert) : NULL;
@@ -1448,6 +1464,7 @@ static int save_cert_crl_file(X509 *cert, const char* suffix, X509_CRL *crl)
 static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_POINT) *crldp)
 {
     int i;
+    LogInfo("entering load_crl_crldp\n");
 
     X509_CRL *crl = NULL;
     if (load_cert_crl_memory(cert, &crl) && crl)
@@ -1469,6 +1486,7 @@ static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_PO
     // so, now loading from web.
     for (i = 0; i < sk_DIST_POINT_num(crldp); i++)
     {
+        LogInfo("checking dist point %i\n", i);
         DIST_POINT *dp = sk_DIST_POINT_value(crldp, i);
 
         const char *urlptr = get_dp_url(dp);
@@ -1494,6 +1512,7 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
 {
     X509_CRL *crl;
     STACK_OF(DIST_POINT) *crldp;
+    LogInfo("entering crls_http_cb\n");
 
     (void)nm;
 
