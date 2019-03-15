@@ -36,7 +36,7 @@
 
 
 #if defined(WIN32)
-#define LOGLINE() do { } while (0)
+#define LOGLINE
 #else
 #include <sys/types.h>
 #include <sys/stat.h>
