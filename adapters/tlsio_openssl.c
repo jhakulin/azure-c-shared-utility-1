@@ -679,6 +679,7 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
     }
     else
     {
+        LOGLINE; LogInfo("SSL_DO_HANDSHAKE_SUCCESS\n");
         tls_io_instance->tlsio_state = TLSIO_STATE_OPEN;
         IO_OPEN_RESULT_DETAILED ok_result = { IO_OPEN_OK, 0 };
         indicate_open_complete(tls_io_instance, ok_result);
@@ -735,6 +736,7 @@ static void on_underlying_io_close_complete(void* context)
 
 static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILED open_result_detailed)
 {
+    LOGLINE; LogInfo("on_underlying_io_open_complete\n");
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
     IO_OPEN_RESULT open_result = open_result_detailed.result;
 
@@ -745,6 +747,7 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILE
             tls_io_instance->tlsio_state = TLSIO_STATE_IN_HANDSHAKE;
 
             // Begin the handshake process here. It continues in on_underlying_io_bytes_received
+            LOGLINE;
             send_handshake_bytes(tls_io_instance);
         }
         else
@@ -759,6 +762,7 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILE
 
 static void on_underlying_io_error(void* context)
 {
+    LOGLINE; LogInfo("underlying io error!\n");
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
 
     switch (tls_io_instance->tlsio_state)
@@ -831,6 +835,7 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
             break;
 
         case TLSIO_STATE_IN_HANDSHAKE:
+            LOGLINE;
             send_handshake_bytes(tls_io_instance);
             break;
 
@@ -903,15 +908,18 @@ static int load_cert_crl_http(
     int ctxsize = 1024 * 1024;
 
     {
-        char *envvar = getenv("SPEECHSDK_OCSP_CTX_SIZE");
+        char *envvar = getenv("OVERRIDE_OCSP_CTX_SIZE");
         if (envvar) {
             LOGLINE;
             ctxsize = atoi(envvar);
-            LogInfo("ctxsize overriden to %d - %s\n", ctxsize, envvar);
+            if (ctxsize < 64 * 1024) ctxsize = 65336;
+            LogInfo("ctxsize overridden to %d - %s\n", ctxsize, envvar);
         }
     } 
 
+    LOGLINE;
     rctx = OCSP_REQ_CTX_new(bio, ctxsize);
+    LOGLINE;
     if (!rctx)
     {
         LOGLINE;
@@ -927,12 +935,14 @@ static int load_cert_crl_http(
         LOGLINE;
         goto error;
     }
+    LOGLINE;
 
     if (!OCSP_REQ_CTX_add1_header(rctx, "Host", host))
     {
         LOGLINE;
         goto error;
     }
+    LOGLINE;
 
     // add the auth header for proxy, if necessary
     if (usernamePassword && *usernamePassword)
@@ -984,17 +994,23 @@ static int load_cert_crl_http(
     do
     {
         LOGLINE;
-        rv = X509_CRL_http_nbio(rctx, pcrl);
+        rv = X509_CRL_http_nbio(rctx, pcrl); // resolve.conf
         LOGLINE;
     } while (rv == -1);
+    LOGLINE;
 
 error:
     LOGLINE;
     if (host) OPENSSL_free(host);
+    LOGLINE;
     if (path) OPENSSL_free(path);
+    LOGLINE;
     if (port) OPENSSL_free(port);
+    LOGLINE;
     if (bio)  BIO_free_all(bio);
+    LOGLINE;
     if (rctx) OCSP_REQ_CTX_free(rctx);
+    LOGLINE;
 
     if (rv != 1)
     {
@@ -1005,7 +1021,7 @@ error:
         }
     }
 
-    LogInfo("returning %d, *pcrl %d\n", rv, *pcrl);
+    LogInfo("returning %d, *pcrl %p\n", rv, *pcrl);
 
     return rv;
 }
@@ -1149,6 +1165,7 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
 
     if (crlp)
     {
+        LOGLINE;
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
         X509_CRL_up_ref(crlp);
 #else
@@ -1174,6 +1191,7 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
 
         if (0 == X509_NAME_cmp(issuer_crl, issuer_cert))
         {
+            LOGLINE;
             X509_CRL_free(crl);
 
             crl_cache[n] = crlp;
@@ -1190,6 +1208,7 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
         X509_CRL *crl = crl_cache[n];
         if (!crl)
         {
+            LOGLINE;
             // set new
             crl_cache[n] = crlp;
 
@@ -1200,6 +1219,8 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
         time_t crlend = crl_invalid_after(crl);
         if (crlend <= now)
         {
+            LOGLINE;
+            // set new
             // remove stale
             crl_cache[n] = NULL;
             X509_CRL_free(crl);
@@ -1217,9 +1238,12 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
     new_crl_cache = (X509_CRL**)malloc((crl_cache_size + 10) * sizeof(X509_CRL*));
     if (!new_crl_cache)
     {
+        LOGLINE;
+        // set new
         lockResult = Unlock(crl_cache_lock);
         return 0;
     }
+    LOGLINE;
 
     // copy over old elements and set new
     memcpy(new_crl_cache, crl_cache, crl_cache_size * sizeof(X509_CRL*));
@@ -1527,6 +1551,7 @@ static int save_cert_crl_file(X509 *cert, const char* suffix, X509_CRL *crl)
 
     for (int i = 0; crl && i < 10; i++)
     {
+        LOGLINE;
         sprintf(buf, "%s/%08lx.%s.%d", prefix, hash, suffix, i);
 
         // try to write to disk, exit loop, if
@@ -1572,7 +1597,7 @@ static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_PO
     // so, now loading from web.
     for (i = 0; i < sk_DIST_POINT_num(crldp); i++)
     {
-        LOGLINE; LogInfo("checking dist point %i\n", i);
+        LOGLINE; LogInfo("checking dist point %d\n", i);
         DIST_POINT *dp = sk_DIST_POINT_value(crldp, i);
 
         const char *urlptr = get_dp_url(dp);
@@ -1609,6 +1634,7 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
     (void)nm;
 
     STACK_OF(X509_CRL) *crls = sk_X509_CRL_new_null();
+
     if (!crls)
     {
         LOGLINE;
@@ -1635,13 +1661,16 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
     // try to download delta Crl
     LOGLINE;
     crldp = X509_get_ext_d2i(x, NID_freshest_crl, NULL, NULL);
-    crl = load_crl_crldp(x, "crld", crldp);
+    LogInfo("crlpd %p\n", crldp);
+    if (crldp != NULL) {
+        crl = load_crl_crldp(x, "crld", crldp);
 
-    sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
-    if (crl)
-    {
-        LOGLINE;
-        sk_X509_CRL_push(crls, crl);
+        sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
+        if (crl)
+        {
+            LOGLINE;
+            sk_X509_CRL_push(crls, crl);
+        }
     }
 
     LOGLINE;
@@ -2315,6 +2344,7 @@ int tlsio_openssl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_open
 int tlsio_openssl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
 {
     int result;
+    LOGLINE; LogInfo("tlsio_openssl_close called\n");
 
     /* Codes_SRS_TLSIO_30_050: [ If the tlsio_handle parameter is NULL, tlsio_close_async shall log an error and return _FAILURE_. ]*/
     if (tls_io == NULL)
