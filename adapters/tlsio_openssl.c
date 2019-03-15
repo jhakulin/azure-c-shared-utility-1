@@ -35,6 +35,21 @@
 #include "azure_c_shared_utility/platform.h" // for http proxy settings
 
 
+#if defined(WIN32)
+#define LOGLINE() do { } while (0)
+#else
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#define LOGLINE do { \
+    struct stat buf; \
+    char fname[24]; \
+    sprintf(fname, "LOGLINE-%d", __LINE__); \
+    LogInfo("%s", fname); \
+    stat(fname, &buf); \
+} while (0)
+#endif
+
 typedef enum TLSIO_STATE_TAG
 {
     TLSIO_STATE_NOT_OPEN,
@@ -635,9 +650,11 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
     // ERR_clear_error must be called before any call that might set an
     // SSL_get_error result
     ERR_clear_error();
+    LOGLINE;
     hsret = SSL_do_handshake(tls_io_instance->ssl);
     if (hsret != SSL_DO_HANDSHAKE_SUCCESS)
     {
+        LOGLINE;
         int ssl_err = SSL_get_error(tls_io_instance->ssl, hsret);
         if (ssl_err != SSL_ERROR_WANT_READ && ssl_err != SSL_ERROR_WANT_WRITE)
         {
@@ -670,6 +687,7 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
 
 static void close_openssl_instance(TLS_IO_INSTANCE* tls_io_instance)
 {
+    LOGLINE;
     if (tls_io_instance->ssl != NULL)
     {
         SSL_free(tls_io_instance->ssl);
@@ -832,49 +850,87 @@ static int load_cert_crl_http(
     const char *url,
     X509_CRL **pcrl)
 {
+    LOGLINE; LogInfo("entering load_cert_crl_http - url %s, *pcrl - %p\n", url, *pcrl);
     char *host = NULL, *port = NULL, *path = NULL;
     BIO *bio = NULL;
     OCSP_REQ_CTX *rctx = NULL;
     int use_ssl, rv = 0;
-    LogInfo("entering load_cert_crl_http\n");
+    
     if (!OCSP_parse_url(url, &host, &port, &path, &use_ssl))
     {
+        LOGLINE;
         LogInfo("parse url failed\n");
         goto error;
     }
+    
+    LogInfo("host %s port %s path %s\n", host, port, path);
 
     if (use_ssl)
     {
+        LOGLINE;
         LogError("https not supported\n");
         goto error;
     }
 
+    LOGLINE;
     const char* proxyHostnamePort;
     const char* usernamePassword;
     platform_get_http_proxy(&proxyHostnamePort, &usernamePassword);
     bool isHostnameSet = (proxyHostnamePort && *proxyHostnamePort);
 
+    LogInfo("isHostnameSet: %d, proxyHostnamePort %s, usernamePassword %p non-empty: %d\n",
+            isHostnameSet,
+            (isHostnameSet ? proxyHostnamePort : ""),
+            usernamePassword,
+            usernamePassword && *usernamePassword);
+
+    LOGLINE;
+
     bio = BIO_new_connect(isHostnameSet ? proxyHostnamePort : host);
+
+    LogInfo("bio %p\n", bio);
+
+    LOGLINE;
+
     if (!bio || (!isHostnameSet && !BIO_set_conn_port(bio, port)))
     {
+        LOGLINE;
         goto error;
     }
 
-    rctx = OCSP_REQ_CTX_new(bio, 1024 * 1024);
+    LOGLINE;
+
+    int ctxsize = 1024 * 1024;
+
+    {
+        char *envvar = getenv("SPEECHSDK_OCSP_CTX_SIZE");
+        if (envvar) {
+            LOGLINE;
+            ctxsize = atoi(envvar);
+            LogInfo("ctxsize overriden to %d - %s\n", ctxsize, envvar);
+        }
+    } 
+
+    rctx = OCSP_REQ_CTX_new(bio, ctxsize);
     if (!rctx)
     {
+        LOGLINE;
         goto error;
     }
 
-    OCSP_set_max_response_length(rctx, 1024 * 1024);
+    LOGLINE;
+    OCSP_set_max_response_length(rctx, ctxsize);
+    LOGLINE;
 
     if (!OCSP_REQ_CTX_http(rctx, "GET", isHostnameSet ? url : path)) // path
     {
+        LOGLINE;
         goto error;
     }
 
     if (!OCSP_REQ_CTX_add1_header(rctx, "Host", host))
     {
+        LOGLINE;
         goto error;
     }
 
@@ -883,44 +939,57 @@ static int load_cert_crl_http(
     {
         char authData[1256];
 
+        LOGLINE;
         BIO *bioPlain = BIO_new(BIO_f_base64());
         BIO_set_flags(bioPlain, BIO_FLAGS_BASE64_NO_NL);
 
+        LOGLINE;
         BIO* bioBase64 = BIO_new(BIO_s_mem());
         BIO_push(bioPlain, bioBase64);
 
+        LOGLINE;
         int result = BIO_write(bioPlain, usernamePassword, (int)strlen(usernamePassword));
         if (result <= 0)
         {
+            LOGLINE;
             BIO_pop(bioPlain);
             BIO_free_all(bioBase64);
             BIO_free_all(bioPlain);
             goto error;
         }
+        LOGLINE;
 
         BIO_flush(bioPlain);
+        LOGLINE;
 
         char* realmBase64;
         int length = BIO_get_mem_data(bioBase64, &realmBase64);
 
         sprintf_s(authData, sizeof(authData), "Basic %.*s", length, realmBase64);
+        LOGLINE;
 
         BIO_pop(bioPlain);
         BIO_free_all(bioBase64);
         BIO_free_all(bioPlain);
 
+        LOGLINE;
         if (!OCSP_REQ_CTX_add1_header(rctx, "Proxy-Authorization", authData))
         {
+            LOGLINE;
             goto error;
         }
     }
+    LOGLINE;
 
     do
     {
+        LOGLINE;
         rv = X509_CRL_http_nbio(rctx, pcrl);
+        LOGLINE;
     } while (rv == -1);
 
 error:
+    LOGLINE;
     if (host) OPENSSL_free(host);
     if (path) OPENSSL_free(path);
     if (port) OPENSSL_free(port);
@@ -929,11 +998,14 @@ error:
 
     if (rv != 1)
     {
+        LOGLINE;
         if (bio)
         {
             LogError("Error loading CRL from %s\n", url);
         }
     }
+
+    LogInfo("returning %d, *pcrl %d\n", rv, *pcrl);
 
     return rv;
 }
@@ -1179,9 +1251,12 @@ static X509_CRL *load_crl(const char *source, int format)
 
     if (format == FORMAT_HTTP)
     {
+        LOGLINE;
         load_cert_crl_http(source, &x);
         return x;
     }
+
+    LOGLINE;
 
     in = BIO_new(BIO_s_file());
     if (in == NULL)
@@ -1339,12 +1414,14 @@ static const char *get_dp_url(DIST_POINT *dp)
 
 static int is_valid_crl(X509 *cert, X509_CRL *crl)
 {
+    LOGLINE;
     time_t now = time(NULL);
     X509_NAME *issuer_cert = cert ? X509_get_issuer_name(cert) : NULL;
 
     // names don't match up.
     if (!crl || !issuer_cert)
     {
+        LOGLINE;
         return 0;
     }
 
@@ -1353,8 +1430,10 @@ static int is_valid_crl(X509 *cert, X509_CRL *crl)
     X509_NAME *issuer_crl = X509_CRL_get_issuer(crl);
     if (0 != X509_NAME_cmp(issuer_crl, issuer_cert))
     {
+        LOGLINE;
         return 0;
     }
+    LOGLINE;
 
     // Important: At this point, we will DELETE
     //      a file holding a Crl from disk in case
@@ -1405,6 +1484,8 @@ static int load_cert_crl_file(X509 *cert, const char* suffix, X509_CRL **pCrl)
         {
             continue;
         }
+
+        LOGLINE;
 
         if (!is_valid_crl(cert, crl))
         {
@@ -1464,16 +1545,18 @@ static int save_cert_crl_file(X509 *cert, const char* suffix, X509_CRL *crl)
 static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_POINT) *crldp)
 {
     int i;
-    LogInfo("entering load_crl_crldp\n");
+    LOGLINE; LogInfo("entering load_crl_crldp - %p, %s, %p\n", cert, suffix, crldp);
 
     X509_CRL *crl = NULL;
     if (load_cert_crl_memory(cert, &crl) && crl)
     {
+        LogInfo("loaded CRL from memory\n");
         return crl;
     }
 
     if (load_cert_crl_file(cert, suffix, &crl) && crl)
     {
+        LogInfo("loaded CRL from file\n");
         // at this point, we got a valid crl from disk that
         // is not yet in memory cache. So,
         // save it to the memory cache before returning it.
@@ -1482,28 +1565,37 @@ static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_PO
         return crl;
     }
 
+    LogInfo("trying to load CRL from the web\n");
+    LOGLINE;
+
     // file was not found on disk cache,
     // so, now loading from web.
     for (i = 0; i < sk_DIST_POINT_num(crldp); i++)
     {
-        LogInfo("checking dist point %i\n", i);
+        LOGLINE; LogInfo("checking dist point %i\n", i);
         DIST_POINT *dp = sk_DIST_POINT_value(crldp, i);
 
         const char *urlptr = get_dp_url(dp);
         if (urlptr)
         {
+            LOGLINE; LogInfo("urlptr %s\n", urlptr);
             // try to load from web, exit loop if
             // successfully downloaded
             crl = load_crl(urlptr, FORMAT_HTTP);
             if (crl) break;
+            LOGLINE;
         }
     }
 
+    LOGLINE;
     // save it to memory
     save_cert_crl_memory(cert, crl);
 
+    LOGLINE;
     // try to update file in cache
     save_cert_crl_file(cert, suffix, crl);
+
+    LOGLINE; LogInfo("returning %p\n", crl);
 
     return crl;
 }
@@ -1512,25 +1604,28 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
 {
     X509_CRL *crl;
     STACK_OF(DIST_POINT) *crldp;
-    LogInfo("entering crls_http_cb\n");
+    LOGLINE; LogInfo("entering crls_http_cb\n");
 
     (void)nm;
 
     STACK_OF(X509_CRL) *crls = sk_X509_CRL_new_null();
     if (!crls)
     {
+        LOGLINE;
         return NULL;
     }
 
     X509 *x = X509_STORE_CTX_get_current_cert(ctx);
 
     // try to download Crl
+    LOGLINE;
     crldp = X509_get_ext_d2i(x, NID_crl_distribution_points, NULL, NULL);
     crl = load_crl_crldp(x, "crl", crldp);
 
     sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
     if (!crl)
     {
+        LOGLINE; LogInfo("no CRL - returning\n");
         sk_X509_CRL_free(crls);
         return NULL;
     }
@@ -1538,14 +1633,19 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
     sk_X509_CRL_push(crls, crl);
 
     // try to download delta Crl
+    LOGLINE;
     crldp = X509_get_ext_d2i(x, NID_freshest_crl, NULL, NULL);
     crl = load_crl_crldp(x, "crld", crldp);
 
     sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
     if (crl)
     {
+        LOGLINE;
         sk_X509_CRL_push(crls, crl);
     }
+
+    LOGLINE;
+    LogInfo("returning, %d CRLs\n", sk_X509_CRL_num(crls));
 
     return crls;
 }
@@ -1749,10 +1849,24 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
 
     // setup CRL checking
     int flags = X509_VERIFY_PARAM_get_flags(store->param);
+    LogInfo("flags are %08x\n", flags);
     if (!(flags & X509_V_FLAG_CRL_CHECK))
     {
-        X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
-        X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
+        char *envvar = getenv("OVERRIDE_NO_CRL");
+        if (envvar) {
+            LOGLINE;
+            LogInfo("OVERRIDE_NO_CRL\n");
+        }
+        else
+        {
+            LOGLINE;
+            X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+            X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
+        }
+    }
+    else
+    {
+        LogInfo("somebody else enabled CRL check\n");
     }
 
     return 0;
@@ -1905,6 +2019,7 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
         if (tlsInstance->in_bio == NULL)
         {
             SSL_CTX_free(tlsInstance->ssl_context);
+            LOGLINE;
             tlsInstance->ssl_context = NULL;
             log_ERR_get_error("Failed BIO_new for in BIO.");
             result = __FAILURE__;
@@ -1985,6 +2100,11 @@ int tlsio_openssl_init(void)
     }
 
     openssl_dynamic_locks_install();
+
+    unsigned long ssl_version;
+    ssl_version = SSLeay();
+    LogInfo("Running with:  %lx (%s)\n", ssl_version, SSLeay_version(SSLEAY_VERSION));
+
     return 0;
 }
 
