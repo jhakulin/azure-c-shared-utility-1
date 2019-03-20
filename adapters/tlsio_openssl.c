@@ -35,21 +35,6 @@
 #include "azure_c_shared_utility/platform.h" // for http proxy settings
 
 
-#if defined(WIN32)
-#define LOGLINE
-#else
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#define LOGLINE do { \
-    struct stat buf; \
-    char fname[24]; \
-    sprintf(fname, "LOGLINE-%d", __LINE__); \
-    LogInfo("%s", fname); \
-    stat(fname, &buf); \
-} while (0)
-#endif
-
 typedef enum TLSIO_STATE_TAG
 {
     TLSIO_STATE_NOT_OPEN,
@@ -93,6 +78,8 @@ typedef struct TLS_IO_INSTANCE_TAG
     const char* x509_certificate;
     const char* x509_private_key;
     TLSIO_VERSION tls_version;
+    bool disable_crl_check;
+    bool disable_default_verify_paths;
     TLS_CERTIFICATE_VALIDATION_CALLBACK tls_validation_callback;
     void* tls_validation_callback_data;
     const char* serverName;
@@ -220,6 +207,23 @@ static void* tlsio_openssl_CloneOption(const char* name, const void* value)
                 result = value_clone;
             }
         }
+        else if (strcmp(name, OPTION_DISABLE_CRL_CHECK) == 0 ||
+            strcmp(name, OPTION_DISABLE_DEFAULT_VERIFY_PATHS) == 0)
+        {
+            bool bool_value = *(bool*)value;
+            bool* value_clone = (bool*)malloc(sizeof(bool));
+
+            if (value_clone)
+            {
+                *value_clone = bool_value;
+            }
+            else
+            {
+                LogError("Failed cloning %s option", name);
+            }
+
+            result = value_clone;
+        }
         else if (
             (strcmp(name, "tls_validation_callback") == 0) ||
             (strcmp(name, "tls_validation_callback_data") == 0)
@@ -333,6 +337,26 @@ static OPTIONHANDLER_HANDLE tlsio_openssl_retrieveoptions(CONCRETE_IO_HANDLE han
                 if (OptionHandler_AddOption(result, OPTION_TLS_VERSION, &tls_io_instance->tls_version) != OPTIONHANDLER_OK)
                 {
                     LogError("unable to save tls_version option");
+                    OptionHandler_Destroy(result);
+                    result = NULL;
+                }
+            }
+            else if (tls_io_instance->disable_crl_check)
+            {
+                // Only add this option if not the default (false)
+                if (OptionHandler_AddOption(result, OPTION_DISABLE_CRL_CHECK, &tls_io_instance->disable_crl_check) != OPTIONHANDLER_OK)
+                {
+                    LogError("unable to save %s option", OPTION_DISABLE_CRL_CHECK);
+                    OptionHandler_Destroy(result);
+                    result = NULL;
+                }
+            }
+            else if (tls_io_instance->disable_default_verify_paths)
+            {
+                // Only add this option if not the default (false)
+                if (OptionHandler_AddOption(result, OPTION_DISABLE_DEFAULT_VERIFY_PATHS, &tls_io_instance->disable_crl_check) != OPTIONHANDLER_OK)
+                {
+                    LogError("unable to save %s option", OPTION_DISABLE_DEFAULT_VERIFY_PATHS);
                     OptionHandler_Destroy(result);
                     result = NULL;
                 }
@@ -650,11 +674,9 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
     // ERR_clear_error must be called before any call that might set an
     // SSL_get_error result
     ERR_clear_error();
-    LOGLINE;
     hsret = SSL_do_handshake(tls_io_instance->ssl);
     if (hsret != SSL_DO_HANDSHAKE_SUCCESS)
     {
-        LOGLINE;
         int ssl_err = SSL_get_error(tls_io_instance->ssl, hsret);
         if (ssl_err != SSL_ERROR_WANT_READ && ssl_err != SSL_ERROR_WANT_WRITE)
         {
@@ -679,7 +701,6 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
     }
     else
     {
-        LOGLINE; LogInfo("SSL_DO_HANDSHAKE_SUCCESS\n");
         tls_io_instance->tlsio_state = TLSIO_STATE_OPEN;
         IO_OPEN_RESULT_DETAILED ok_result = { IO_OPEN_OK, 0 };
         indicate_open_complete(tls_io_instance, ok_result);
@@ -688,7 +709,6 @@ static void send_handshake_bytes(TLS_IO_INSTANCE* tls_io_instance)
 
 static void close_openssl_instance(TLS_IO_INSTANCE* tls_io_instance)
 {
-    LOGLINE;
     if (tls_io_instance->ssl != NULL)
     {
         SSL_free(tls_io_instance->ssl);
@@ -736,7 +756,6 @@ static void on_underlying_io_close_complete(void* context)
 
 static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILED open_result_detailed)
 {
-    LOGLINE; LogInfo("on_underlying_io_open_complete\n");
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
     IO_OPEN_RESULT open_result = open_result_detailed.result;
 
@@ -747,7 +766,6 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILE
             tls_io_instance->tlsio_state = TLSIO_STATE_IN_HANDSHAKE;
 
             // Begin the handshake process here. It continues in on_underlying_io_bytes_received
-            LOGLINE;
             send_handshake_bytes(tls_io_instance);
         }
         else
@@ -762,7 +780,6 @@ static void on_underlying_io_open_complete(void* context, IO_OPEN_RESULT_DETAILE
 
 static void on_underlying_io_error(void* context)
 {
-    LOGLINE; LogInfo("underlying io error!\n");
     TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)context;
 
     switch (tls_io_instance->tlsio_state)
@@ -835,7 +852,6 @@ static void on_underlying_io_bytes_received(void* context, const unsigned char* 
             break;
 
         case TLSIO_STATE_IN_HANDSHAKE:
-            LOGLINE;
             send_handshake_bytes(tls_io_instance);
             break;
 
@@ -855,173 +871,127 @@ static int load_cert_crl_http(
     const char *url,
     X509_CRL **pcrl)
 {
-    LOGLINE; LogInfo("entering load_cert_crl_http - url %s, *pcrl - %p\n", url, *pcrl);
     char *host = NULL, *port = NULL, *path = NULL;
     BIO *bio = NULL;
     OCSP_REQ_CTX *rctx = NULL;
     int use_ssl, rv = 0;
-    
     if (!OCSP_parse_url(url, &host, &port, &path, &use_ssl))
     {
-        LOGLINE;
-        LogInfo("parse url failed\n");
         goto error;
     }
-    
-    LogInfo("host %s port %s path %s\n", host, port, path);
 
     if (use_ssl)
     {
-        LOGLINE;
         LogError("https not supported\n");
         goto error;
     }
 
-    LOGLINE;
     const char* proxyHostnamePort;
     const char* usernamePassword;
     platform_get_http_proxy(&proxyHostnamePort, &usernamePassword);
     bool isHostnameSet = (proxyHostnamePort && *proxyHostnamePort);
 
-    LogInfo("isHostnameSet: %d, proxyHostnamePort %s, usernamePassword %p non-empty: %d\n",
-            isHostnameSet,
-            (isHostnameSet ? proxyHostnamePort : ""),
-            usernamePassword,
-            usernamePassword && *usernamePassword);
-
-    LOGLINE;
+    if (isHostnameSet)
+    {
+        LogInfo("Performing CRL download via proxy%s.\n",
+            usernamePassword && *usernamePassword
+                ? " (with authentication)"
+                : "");
+    }
 
     bio = BIO_new_connect(isHostnameSet ? proxyHostnamePort : host);
-
-    LogInfo("bio %p\n", bio);
-
-    LOGLINE;
-
     if (!bio || (!isHostnameSet && !BIO_set_conn_port(bio, port)))
     {
-        LOGLINE;
         goto error;
     }
 
-    LOGLINE;
-
-    int ctxsize = 1024 * 1024;
-
-    {
-        char *envvar = getenv("OVERRIDE_OCSP_CTX_SIZE");
-        if (envvar) {
-            LOGLINE;
-            ctxsize = atoi(envvar);
-            if (ctxsize < 64 * 1024) ctxsize = 65336;
-            LogInfo("ctxsize overridden to %d - %s\n", ctxsize, envvar);
-        }
-    } 
-
-    LOGLINE;
-    rctx = OCSP_REQ_CTX_new(bio, ctxsize);
-    LOGLINE;
+    rctx = OCSP_REQ_CTX_new(bio, 1024 * 1024);
     if (!rctx)
     {
-        LOGLINE;
         goto error;
     }
 
-    LOGLINE;
-    OCSP_set_max_response_length(rctx, ctxsize);
-    LOGLINE;
+    OCSP_set_max_response_length(rctx, 1024 * 1024);
 
-    if (!OCSP_REQ_CTX_http(rctx, "GET", isHostnameSet ? url : path)) // path
+    if (!OCSP_REQ_CTX_http(rctx, "GET", isHostnameSet ? url : path))
     {
-        LOGLINE;
         goto error;
     }
-    LOGLINE;
 
     if (!OCSP_REQ_CTX_add1_header(rctx, "Host", host))
     {
-        LOGLINE;
         goto error;
     }
-    LOGLINE;
 
     // add the auth header for proxy, if necessary
     if (usernamePassword && *usernamePassword)
     {
         char authData[1256];
 
-        LOGLINE;
         BIO *bioPlain = BIO_new(BIO_f_base64());
+
+        if (!bioPlain)
+        {
+            goto error;
+        }
+
         BIO_set_flags(bioPlain, BIO_FLAGS_BASE64_NO_NL);
 
-        LOGLINE;
         BIO* bioBase64 = BIO_new(BIO_s_mem());
+
+        if (!bioBase64)
+        {
+            BIO_free_all(bioBase64);
+            goto error;
+        }
+
         BIO_push(bioPlain, bioBase64);
 
-        LOGLINE;
         int result = BIO_write(bioPlain, usernamePassword, (int)strlen(usernamePassword));
         if (result <= 0)
         {
-            LOGLINE;
             BIO_pop(bioPlain);
             BIO_free_all(bioBase64);
             BIO_free_all(bioPlain);
             goto error;
         }
-        LOGLINE;
 
         BIO_flush(bioPlain);
-        LOGLINE;
 
         char* realmBase64;
         int length = BIO_get_mem_data(bioBase64, &realmBase64);
 
         sprintf_s(authData, sizeof(authData), "Basic %.*s", length, realmBase64);
-        LOGLINE;
 
         BIO_pop(bioPlain);
         BIO_free_all(bioBase64);
         BIO_free_all(bioPlain);
 
-        LOGLINE;
         if (!OCSP_REQ_CTX_add1_header(rctx, "Proxy-Authorization", authData))
         {
-            LOGLINE;
             goto error;
         }
     }
-    LOGLINE;
 
     do
     {
-        LOGLINE;
-        rv = X509_CRL_http_nbio(rctx, pcrl); // resolve.conf
-        LOGLINE;
+        rv = X509_CRL_http_nbio(rctx, pcrl);
     } while (rv == -1);
-    LOGLINE;
 
 error:
-    LOGLINE;
     if (host) OPENSSL_free(host);
-    LOGLINE;
     if (path) OPENSSL_free(path);
-    LOGLINE;
     if (port) OPENSSL_free(port);
-    LOGLINE;
     if (bio)  BIO_free_all(bio);
-    LOGLINE;
     if (rctx) OCSP_REQ_CTX_free(rctx);
-    LOGLINE;
 
     if (rv != 1)
     {
-        LOGLINE;
         if (bio)
         {
             LogError("Error loading CRL from %s\n", url);
         }
     }
-
-    LogInfo("returning %d, *pcrl %p\n", rv, *pcrl);
 
     return rv;
 }
@@ -1165,7 +1135,6 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
 
     if (crlp)
     {
-        LOGLINE;
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
         X509_CRL_up_ref(crlp);
 #else
@@ -1191,7 +1160,6 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
 
         if (0 == X509_NAME_cmp(issuer_crl, issuer_cert))
         {
-            LOGLINE;
             X509_CRL_free(crl);
 
             crl_cache[n] = crlp;
@@ -1208,7 +1176,6 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
         X509_CRL *crl = crl_cache[n];
         if (!crl)
         {
-            LOGLINE;
             // set new
             crl_cache[n] = crlp;
 
@@ -1219,8 +1186,6 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
         time_t crlend = crl_invalid_after(crl);
         if (crlend <= now)
         {
-            LOGLINE;
-            // set new
             // remove stale
             crl_cache[n] = NULL;
             X509_CRL_free(crl);
@@ -1238,12 +1203,9 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
     new_crl_cache = (X509_CRL**)malloc((crl_cache_size + 10) * sizeof(X509_CRL*));
     if (!new_crl_cache)
     {
-        LOGLINE;
-        // set new
         lockResult = Unlock(crl_cache_lock);
         return 0;
     }
-    LOGLINE;
 
     // copy over old elements and set new
     memcpy(new_crl_cache, crl_cache, crl_cache_size * sizeof(X509_CRL*));
@@ -1271,16 +1233,12 @@ static X509_CRL *load_crl(const char *source, int format)
 {
     X509_CRL *x = NULL;
     BIO *in = NULL;
-    LogInfo("entering load_crl\n");
 
     if (format == FORMAT_HTTP)
     {
-        LOGLINE;
         load_cert_crl_http(source, &x);
         return x;
     }
-
-    LOGLINE;
 
     in = BIO_new(BIO_s_file());
     if (in == NULL)
@@ -1323,8 +1281,8 @@ static X509_CRL *load_crl(const char *source, int format)
     }
 
 end:
-    BIO_free(in);
-    return (x);
+    if (in) BIO_free(in);
+    return x;
 }
 
 static int save_crl(const char *source, X509_CRL *crl, int format)
@@ -1398,7 +1356,7 @@ static const char *get_dp_url(DIST_POINT *dp)
 
     if (!dp->distpoint)
     {
-        LogInfo("returning, distpoint is null\n");
+        LogInfo("returning, dp->distpoint is null\n");
         return NULL;
     }
 
@@ -1415,9 +1373,6 @@ static const char *get_dp_url(DIST_POINT *dp)
         gen = sk_GENERAL_NAME_value(gens, i);
         uri = GENERAL_NAME_get0_value(gen, &gtype);
 
-        LogInfo("checking name %i - gtype %d - length %d\n",
-                i, gtype, ASN1_STRING_length(uri));
-
         if (gtype == GEN_URI && ASN1_STRING_length(uri) > 6)
         {
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
@@ -1425,7 +1380,6 @@ static const char *get_dp_url(DIST_POINT *dp)
 #else
             char *uptr = (char *)ASN1_STRING_data(uri);
 #endif
-            LogInfo("checking name %s\n", uptr);
             if (!strncmp(uptr, "http://", 7))
             {
                 return uptr;
@@ -1438,14 +1392,12 @@ static const char *get_dp_url(DIST_POINT *dp)
 
 static int is_valid_crl(X509 *cert, X509_CRL *crl)
 {
-    LOGLINE;
     time_t now = time(NULL);
     X509_NAME *issuer_cert = cert ? X509_get_issuer_name(cert) : NULL;
 
     // names don't match up.
     if (!crl || !issuer_cert)
     {
-        LOGLINE;
         return 0;
     }
 
@@ -1454,10 +1406,8 @@ static int is_valid_crl(X509 *cert, X509_CRL *crl)
     X509_NAME *issuer_crl = X509_CRL_get_issuer(crl);
     if (0 != X509_NAME_cmp(issuer_crl, issuer_cert))
     {
-        LOGLINE;
         return 0;
     }
-    LOGLINE;
 
     // Important: At this point, we will DELETE
     //      a file holding a Crl from disk in case
@@ -1487,10 +1437,9 @@ static int load_cert_crl_file(X509 *cert, const char* suffix, X509_CRL **pCrl)
         NULL == (prefix = getenv("TEMP")) &&
         NULL == (prefix = getenv("TMPDIR")))
     {
-        LogInfo("will not use CRL cache directory\n");
+        LogInfo("Not using CRL cache directory.\n");
         return 0;
     }
-    LogInfo("using CRL cache directory %s\n", prefix);
 
     // we need the issuer hash to find the file on disk
     X509_NAME *issuer_cert = cert ? X509_get_issuer_name(cert) : NULL;
@@ -1508,8 +1457,6 @@ static int load_cert_crl_file(X509 *cert, const char* suffix, X509_CRL **pCrl)
         {
             continue;
         }
-
-        LOGLINE;
 
         if (!is_valid_crl(cert, crl))
         {
@@ -1551,7 +1498,6 @@ static int save_cert_crl_file(X509 *cert, const char* suffix, X509_CRL *crl)
 
     for (int i = 0; crl && i < 10; i++)
     {
-        LOGLINE;
         sprintf(buf, "%s/%08lx.%s.%d", prefix, hash, suffix, i);
 
         // try to write to disk, exit loop, if
@@ -1570,18 +1516,15 @@ static int save_cert_crl_file(X509 *cert, const char* suffix, X509_CRL *crl)
 static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_POINT) *crldp)
 {
     int i;
-    LOGLINE; LogInfo("entering load_crl_crldp - %p, %s, %p\n", cert, suffix, crldp);
 
     X509_CRL *crl = NULL;
     if (load_cert_crl_memory(cert, &crl) && crl)
     {
-        LogInfo("loaded CRL from memory\n");
         return crl;
     }
 
     if (load_cert_crl_file(cert, suffix, &crl) && crl)
     {
-        LogInfo("loaded CRL from file\n");
         // at this point, we got a valid crl from disk that
         // is not yet in memory cache. So,
         // save it to the memory cache before returning it.
@@ -1590,37 +1533,36 @@ static X509_CRL *load_crl_crldp(X509 *cert, const char* suffix, STACK_OF(DIST_PO
         return crl;
     }
 
-    LogInfo("trying to load CRL from the web\n");
-    LOGLINE;
-
     // file was not found on disk cache,
     // so, now loading from web.
+    const char *urlptr = NULL;
     for (i = 0; i < sk_DIST_POINT_num(crldp); i++)
     {
-        LOGLINE; LogInfo("checking dist point %d\n", i);
         DIST_POINT *dp = sk_DIST_POINT_value(crldp, i);
 
-        const char *urlptr = get_dp_url(dp);
+        urlptr = get_dp_url(dp);
         if (urlptr)
         {
-            LOGLINE; LogInfo("urlptr %s\n", urlptr);
             // try to load from web, exit loop if
             // successfully downloaded
             crl = load_crl(urlptr, FORMAT_HTTP);
             if (crl) break;
-            LOGLINE;
         }
     }
 
-    LOGLINE;
-    // save it to memory
-    save_cert_crl_memory(cert, crl);
+    if (!urlptr)
+    {
+        LogError("No CRL dist point qualified for downloading.");
+    }
 
-    LOGLINE;
-    // try to update file in cache
-    save_cert_crl_file(cert, suffix, crl);
+    if (crl)
+    {
+        // save it to memory
+        save_cert_crl_memory(cert, crl);
 
-    LOGLINE; LogInfo("returning %p\n", crl);
+        // try to update file in cache
+        save_cert_crl_file(cert, suffix, crl);
+    }
 
     return crl;
 }
@@ -1629,29 +1571,31 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
 {
     X509_CRL *crl;
     STACK_OF(DIST_POINT) *crldp;
-    LOGLINE; LogInfo("entering crls_http_cb\n");
 
     (void)nm;
 
     STACK_OF(X509_CRL) *crls = sk_X509_CRL_new_null();
-
     if (!crls)
     {
-        LOGLINE;
+        LogError("Failed to allocate STACK_OF(X509_CRL)\n");
         return NULL;
     }
 
     X509 *x = X509_STORE_CTX_get_current_cert(ctx);
 
     // try to download Crl
-    LOGLINE;
     crldp = X509_get_ext_d2i(x, NID_crl_distribution_points, NULL, NULL);
+    if (!crldp && X509_NAME_cmp(X509_get_issuer_name(x), X509_get_subject_name(x)) != 0)
+    {
+        LogInfo("No CRL distribution points defined on non self-issued cert, CRL check may fail.\n");
+    }
+
     crl = load_crl_crldp(x, "crl", crldp);
 
     sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
     if (!crl)
     {
-        LOGLINE; LogInfo("no CRL - returning\n");
+        LogError("Unable to retrieve CRL, CRL check will fail.\n");
         sk_X509_CRL_free(crls);
         return NULL;
     }
@@ -1659,22 +1603,16 @@ static STACK_OF(X509_CRL) *crls_http_cb(X509_STORE_CTX *ctx, X509_NAME *nm)
     sk_X509_CRL_push(crls, crl);
 
     // try to download delta Crl
-    LOGLINE;
     crldp = X509_get_ext_d2i(x, NID_freshest_crl, NULL, NULL);
-    LogInfo("crlpd %p\n", crldp);
     if (crldp != NULL) {
         crl = load_crl_crldp(x, "crld", crldp);
 
         sk_DIST_POINT_pop_free(crldp, DIST_POINT_free);
         if (crl)
         {
-            LOGLINE;
             sk_X509_CRL_push(crls, crl);
         }
     }
-
-    LOGLINE;
-    LogInfo("returning, %d CRLs\n", sk_X509_CRL_num(crls));
 
     return crls;
 }
@@ -1702,7 +1640,7 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
         CERT_SYSTEM_STORE_CURRENT_USER,
         L"ROOT");
 
-    if(hSysStore)
+    if (hSysStore)
     {
         LogInfo("The system store was opened successfully.");
     }
@@ -1779,7 +1717,7 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
         X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
     }
 
-    if(hSysStore)
+    if (hSysStore)
     {
         CertCloseStore(hSysStore, 0);
     }
@@ -1851,10 +1789,6 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
         LogInfo("An error occurred during opening global certificate storage under '%s'!", certs_path);
     }
 
-    // setup CRL checking
-    X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
-    X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
-
     return 0;
 }
 
@@ -1864,46 +1798,50 @@ static int load_system_store(TLS_IO_INSTANCE* tls_io_instance)
 {
     X509_STORE * store = NULL;
 
-    if (tls_io_instance && tls_io_instance->ssl_context)
-    {
-        store = SSL_CTX_get_cert_store(tls_io_instance->ssl_context);
-    }
-    else
-    {
-        LogError("Can't access the ssl_context.");
-        return -1;
-    }
-
-    LogInfo("load_system_store is not implemented on non-windows platforms");
-
-    // setup CRL checking
-    int flags = X509_VERIFY_PARAM_get_flags(store->param);
-    LogInfo("flags are %08x\n", flags);
-    if (!(flags & X509_V_FLAG_CRL_CHECK))
-    {
-        char *envvar = getenv("OVERRIDE_NO_CRL");
-        if (envvar) {
-            LOGLINE;
-            LogInfo("OVERRIDE_NO_CRL\n");
-        }
-        else
-        {
-            LOGLINE;
-            X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
-            X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
-        }
-    }
-    else
-    {
-        LogInfo("somebody else enabled CRL check\n");
-    }
+    LogInfo("load_system_store not implemented on this platform");
 
     return 0;
 }
 #endif
 
+static int setup_crl_check(TLS_IO_INSTANCE* tls_io_instance)
+{
+    X509_STORE * store = NULL;
+
+    if (!tls_io_instance || !tls_io_instance->ssl_context)
+    {
+        LogError("Can't access the ssl_context.");
+        return -1;
+    }
+
+    store = SSL_CTX_get_cert_store(tls_io_instance->ssl_context);
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+    int flags = X509_VERIFY_PARAM_get_flags(X509_STORE_get0_param(store));
+#else
+    int flags = X509_VERIFY_PARAM_get_flags(store->param);
+#endif
+
+    if (flags & X509_V_FLAG_CRL_CHECK)
+    {
+        LogInfo("CRL check enabled by default X509 verify parameters, won't change.\n");
+    }
+    else if (tls_io_instance->disable_crl_check)
+    {
+        LogInfo("CRL check off, as requested.\n");
+    }
+    else
+    {
+        X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+        X509_STORE_set_lookup_crls_cb(store, crls_http_cb);
+    }
+
+    return 0;
+}
+
 static int add_certificate_to_store(TLS_IO_INSTANCE* tls_io_instance, const char* certValue)
 {
+    LogInfo("Trying to add certificate\n");
     int result = 0;
 
     if (certValue != NULL)
@@ -1948,7 +1886,7 @@ static int add_certificate_to_store(TLS_IO_INSTANCE* tls_io_instance, const char
                     {
                         if ((size_t)puts_result != strlen(certValue))
                         {
-                            log_ERR_get_error("mismatching legths");
+                            log_ERR_get_error("mismatching lengths");
                             result = __FAILURE__;
                         }
                         else
@@ -2019,6 +1957,11 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
         log_ERR_get_error("unable to load_system_store.");
         result = __FAILURE__;
     }
+    else if (setup_crl_check(tlsInstance) != 0)
+    {
+        log_ERR_get_error("unable to set up CRL check.");
+        result = __FAILURE__;
+    }
     else if (
         (tlsInstance->certificate != NULL) &&
         add_certificate_to_store(tlsInstance, tlsInstance->certificate) != 0)
@@ -2048,7 +1991,6 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
         if (tlsInstance->in_bio == NULL)
         {
             SSL_CTX_free(tlsInstance->ssl_context);
-            LOGLINE;
             tlsInstance->ssl_context = NULL;
             log_ERR_get_error("Failed BIO_new for in BIO.");
             result = __FAILURE__;
@@ -2080,11 +2022,18 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
                 {
                     SSL_CTX_set_verify(tlsInstance->ssl_context, SSL_VERIFY_PEER, NULL);
 
-                    // Specifies that the default locations for which CA certificates are loaded should be used.
-                    if (SSL_CTX_set_default_verify_paths(tlsInstance->ssl_context) != 1)
+                    if (!tlsInstance->disable_default_verify_paths)
                     {
-                        // This is only a warning to the user. They can still specify the certificate via SetOption.
-                        LogInfo("WARNING: Unable to specify the default location for CA certificates on this platform.");
+                        // Specifies that the default locations for which CA certificates are loaded should be used.
+                        if (SSL_CTX_set_default_verify_paths(tlsInstance->ssl_context) != 1)
+                        {
+                            // This is only a warning to the user. They can still specify the certificate via SetOption.
+                            LogInfo("WARNING: Unable to specify the default location for CA certificates on this platform.");
+                        }
+                    }
+                    else
+                    {
+                        LogInfo("Not using default verify paths, as requested.\n");
                     }
 
                     tlsInstance->ssl = SSL_new(tlsInstance->ssl_context);
@@ -2132,7 +2081,7 @@ int tlsio_openssl_init(void)
 
     unsigned long ssl_version;
     ssl_version = SSLeay();
-    LogInfo("Running with:  %lx (%s)\n", ssl_version, SSLeay_version(SSLEAY_VERSION));
+    LogInfo("Using %s: %lx\n", SSLeay_version(SSLEAY_VERSION), ssl_version);
 
     return 0;
 }
@@ -2233,6 +2182,8 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
                     result->x509_private_key = NULL;
 
                     result->tls_version = OPTION_TLS_VERSION_1_0;
+                    result->disable_crl_check = false;
+                    result->disable_default_verify_paths = false;
 
                     result->underlying_io = xio_create(underlying_io_interface, io_interface_parameters);
                     if (result->underlying_io == NULL)
@@ -2344,7 +2295,6 @@ int tlsio_openssl_open(CONCRETE_IO_HANDLE tls_io, ON_IO_OPEN_COMPLETE on_io_open
 int tlsio_openssl_close(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
 {
     int result;
-    LOGLINE; LogInfo("tlsio_openssl_close called\n");
 
     /* Codes_SRS_TLSIO_30_050: [ If the tlsio_handle parameter is NULL, tlsio_close_async shall log an error and return _FAILURE_. ]*/
     if (tls_io == NULL)
@@ -2640,6 +2590,32 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
                     LogInfo("Value of TLS version option %d is not found shall default to version 1.2", version_option);
                     tls_io_instance->tls_version = OPTION_TLS_VERSION_1_2;
                 }
+                result = 0;
+            }
+        }
+        else if (strcmp(OPTION_DISABLE_CRL_CHECK, optionName) == 0)
+        {
+            if (tls_io_instance->ssl_context != NULL)
+            {
+                LogError("Unable to set the %s option after the TLS connection is established", optionName);
+                result = __FAILURE__;
+            }
+            else
+            {
+                tls_io_instance->disable_crl_check = *(const bool*)value;
+                result = 0;
+            }
+        }
+        else if (strcmp(OPTION_DISABLE_DEFAULT_VERIFY_PATHS, optionName) == 0)
+        {
+            if (tls_io_instance->ssl_context != NULL)
+            {
+                LogError("Unable to set the %s option after the TLS connection is established", optionName);
+                result = __FAILURE__;
+            }
+            else
+            {
+                tls_io_instance->disable_default_verify_paths = *(const bool*)value;
                 result = 0;
             }
         }
