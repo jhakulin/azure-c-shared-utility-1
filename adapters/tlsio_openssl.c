@@ -2,10 +2,33 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdlib.h>
+
+#include "openssl/opensslv.h"
+
+#if !defined(OPENSSL_VERSION_NUMBER)
+#error Fatal: OPENSSL_VERSION_NUMBER not defined.
+#elif (OPENSSL_VERSION_NUMBER >> 12) == 0x10002
+#define USE_OPENSSL_1_0_2 1
+#define USE_OPENSSL_1_1_0_OR_UP 0
+#elif ((OPENSSL_VERSION_NUMBER >> 12) == 0x10100 || \
+       (OPENSSL_VERSION_NUMBER >> 12) == 0x10101)
+#define USE_OPENSSL_1_0_2 0
+#define USE_OPENSSL_1_1_0_OR_UP 1
+#else
+#error Fatal: unexpected OPENSSL_VERSION_NUMBER; OpenSSL 1.0.2, 1.1.0, or 1.1.1 is required.
+// Note: version >= 0x20000000L and < 0x30000000L would be the FIPS-enabled one.
+// Also explicitly ignored here.
+#endif
+
+#if USE_OPENSSL_1_1_0_OR_UP
+#define OPENSSL_API_COMPAT 0x10100000L
+#else
+#define OPENSSL_API_COMPAT 0x10000000L
+#endif
+
 #include "openssl/ssl.h"
 #include "openssl/err.h"
 #include "openssl/crypto.h"
-#include "openssl/opensslv.h"
 #include <stdio.h>
 #if defined(WIN32)
 #include <io.h>
@@ -368,8 +391,31 @@ static const IO_INTERFACE_DESCRIPTION tlsio_openssl_interface_description =
     tlsio_openssl_setoption
 };
 
-static LOCK_HANDLE * openssl_locks = NULL;
+static void log_ERR_get_error(const char* message)
+{
+    char buf[128];
+    AZURE_UNREFERENCED_PARAMETER(buf);
+    unsigned long error;
+    int i;
 
+    if (message != NULL)
+    {
+        LogError("%s", message);
+    }
+
+    error = ERR_get_error();
+
+    for (i = 0; 0 != error; i++)
+    {
+        LogError("  [%d] %s", i, ERR_error_string(error, buf));
+        error = ERR_get_error();
+    }
+}
+
+#if !USE_OPENSSL_1_1_0_OR_UP
+// Locking callbacks are not required anymore with OpenSSL 1.1.0 or up.
+
+static LOCK_HANDLE * openssl_locks = NULL;
 
 static void openssl_lock_unlock_helper(LOCK_HANDLE lock, int lock_mode, const char* file, int line)
 {
@@ -389,27 +435,6 @@ static void openssl_lock_unlock_helper(LOCK_HANDLE lock, int lock_mode, const ch
         {
             LogError("Failed to unlock openssl lock (%s:%d)", file, line);
         }
-    }
-}
-
-static void log_ERR_get_error(const char* message)
-{
-    char buf[128];
-    AZURE_UNREFERENCED_PARAMETER(buf);
-    unsigned long error;
-    int i;
-
-    if (message != NULL)
-    {
-        LogError("%s", message);
-    }
-
-    error = ERR_get_error();
-
-    for (i = 0; 0 != error; i++)
-    {
-        LogError("  [%d] %s", i, ERR_error_string(error, buf));
-        error = ERR_get_error();
     }
 }
 
@@ -456,20 +481,16 @@ static void openssl_dynamic_locks_destroy_cb(struct CRYPTO_dynlock_value* dynloc
 
 static void openssl_dynamic_locks_uninstall(void)
 {
-#if (OPENSSL_VERSION_NUMBER >= 0x00906000)
     CRYPTO_set_dynlock_create_callback(NULL);
     CRYPTO_set_dynlock_lock_callback(NULL);
     CRYPTO_set_dynlock_destroy_callback(NULL);
-#endif
 }
 
 static void openssl_dynamic_locks_install(void)
 {
-#if (OPENSSL_VERSION_NUMBER >= 0x00906000)
     CRYPTO_set_dynlock_destroy_callback(openssl_dynamic_locks_destroy_cb);
     CRYPTO_set_dynlock_lock_callback(openssl_dynamic_locks_lock_unlock_cb);
     CRYPTO_set_dynlock_create_callback(openssl_dynamic_locks_create_cb);
-#endif
 }
 
 static void openssl_static_locks_lock_unlock_cb(int lock_mode, int lock_index, const char * file, int line)
@@ -557,6 +578,7 @@ static int openssl_static_locks_install(void)
     }
     return result;
 }
+#endif
 
 static void indicate_error(TLS_IO_INSTANCE* tls_io_instance)
 {
@@ -974,7 +996,7 @@ static int atoin(const char *str, int start, int len)
 
 static time_t crl_invalid_after(X509_CRL *crl)
 {
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
     const ASN1_TIME *at = X509_CRL_get0_nextUpdate(crl);
 #else
     ASN1_TIME *at = crl->crl->nextUpdate;
@@ -1069,7 +1091,7 @@ static int load_cert_crl_memory(X509 *cert, X509_CRL **pCrl)
             continue;
         }
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
         X509_CRL_up_ref(crl);
 #else
         crl->references++;
@@ -1096,7 +1118,7 @@ static int save_cert_crl_memory(X509 *cert, X509_CRL *crlp)
 
     if (crlp)
     {
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
         X509_CRL_up_ref(crlp);
 #else
         crlp->references++;
@@ -1336,7 +1358,7 @@ static const char *get_dp_url(DIST_POINT *dp)
 
         if (gtype == GEN_URI && ASN1_STRING_length(uri) > 6)
         {
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
             char *uptr = (char *)ASN1_STRING_get0_data(uri);
 #else
             char *uptr = (char *)ASN1_STRING_data(uri);
@@ -1782,7 +1804,7 @@ static int setup_crl_check(TLS_IO_INSTANCE* tls_io_instance)
 
     store = SSL_CTX_get_cert_store(tls_io_instance->ssl_context);
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
     int flags = X509_VERIFY_PARAM_get_flags(X509_STORE_get0_param(store));
 #else
     int flags = X509_VERIFY_PARAM_get_flags(store->param);
@@ -1811,7 +1833,7 @@ static int add_certificate_to_store(TLS_IO_INSTANCE* tls_io_instance, const char
         }
         else
         {
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L) && (OPENSSL_VERSION_NUMBER < 0x20000000L)
+#if USE_OPENSSL_1_1_0_OR_UP
             const BIO_METHOD* bio_method;
 #else
             BIO_METHOD* bio_method;
@@ -1884,7 +1906,7 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
 
     const SSL_METHOD* method = NULL;
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || (OPENSSL_VERSION_NUMBER >= 0x20000000L)
+#if !USE_OPENSSL_1_1_0_OR_UP
     if (tlsInstance->tls_version == OPTION_TLS_VERSION_1_2)
     {
         method = TLSv1_2_method();
@@ -1903,12 +1925,29 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
     }
 #endif
 
+#if USE_OPENSSL_1_1_0_OR_UP
+    // TODO shouldn't be doing this.
+    int tlsVersion = tlsInstance->tls_version == OPTION_TLS_VERSION_1_2
+        ? TLS1_2_VERSION
+        : (tlsInstance->tls_version == OPTION_TLS_VERSION_1_1
+            ? TLS1_1_VERSION
+            : TLS1_VERSION);
+#endif
+
     tlsInstance->ssl_context = SSL_CTX_new(method);
     if (tlsInstance->ssl_context == NULL)
     {
         log_ERR_get_error("Failed allocating OpenSSL context.");
         result = __FAILURE__;
     }
+#if USE_OPENSSL_1_1_0_OR_UP
+    else if(!SSL_CTX_set_min_proto_version(tlsInstance->ssl_context, tlsVersion) ||
+            !SSL_CTX_set_max_proto_version(tlsInstance->ssl_context, tlsVersion))
+    {
+        log_ERR_get_error("Failed to set TLS version.");
+        result = __FAILURE__;
+    }
+#endif
     else if (load_system_store(tlsInstance) != 0)
     {
         log_ERR_get_error("unable to load_system_store.");
@@ -2015,12 +2054,20 @@ int tlsio_openssl_init(void)
 {
     crl_cache_lock = Lock_Init();
 
+#if !USE_OPENSSL_1_1_0_OR_UP
+    // OpenSSL 1.1.0 or up does not require explicit initialization, except if
+    // non-default initialization is needed. Moreover, strings for libssl and
+    // libcrypto are automatically loaded by default.
     (void)SSL_library_init();
-
     SSL_load_error_strings();
     ERR_load_BIO_strings();
+#endif
+
+#if !USE_OPENSSL_1_1_0_OR_UP
+    // OpenSSL 1.1.0 will by default add all ciphers and digests.
     OpenSSL_add_all_algorithms();
 
+    // Locking callbacks not needed for 1.1.0 or up.
     if (openssl_static_locks_install() != 0)
     {
         LogError("Failed to install static locks in OpenSSL!");
@@ -2028,34 +2075,32 @@ int tlsio_openssl_init(void)
     }
 
     openssl_dynamic_locks_install();
+#endif
 
-    unsigned long ssl_version;
-    ssl_version = SSLeay();
-    LogInfo("Using %s: %lx\n", SSLeay_version(SSLEAY_VERSION), ssl_version);
+#if USE_OPENSSL_1_1_0_OR_UP
+    LogInfo("Using %s: %lx\n", OpenSSL_version(OPENSSL_VERSION), OpenSSL_version_num());
+#else
+    LogInfo("Using %s: %lx\n", SSLeay_version(SSLEAY_VERSION), SSLeay());
+#endif
     return 0;
 }
 
 void tlsio_openssl_deinit(void)
 {
+#if !USE_OPENSSL_1_1_0_OR_UP
+    // Clean-up (incl. locking callbacks) not required anymore for 1.1.0 or up.
+
     openssl_dynamic_locks_uninstall();
     openssl_static_locks_uninstall();
-#if  (OPENSSL_VERSION_NUMBER >= 0x00907000L) &&  (OPENSSL_VERSION_NUMBER < 0x20000000L) && (FIPS_mode_set)
     FIPS_mode_set(0);
-#endif
     CRYPTO_set_locking_callback(NULL);
-    CRYPTO_set_id_callback(NULL);
+    CRYPTO_set_id_callback(NULL); // TODO already deprecated in 1.0.0 ?
     ERR_free_strings();
     EVP_cleanup();
-
-#if   (OPENSSL_VERSION_NUMBER < 0x10000000L)
-    ERR_remove_state(0);
-#elif (OPENSSL_VERSION_NUMBER < 0x10100000L) || (OPENSSL_VERSION_NUMBER >= 0x20000000L)
     ERR_remove_thread_state(NULL);
-#endif
-#if  (OPENSSL_VERSION_NUMBER >= 0x10002000L) &&  (OPENSSL_VERSION_NUMBER < 0x10010000L) && (SSL_COMP_free_compression_methods)
     SSL_COMP_free_compression_methods();
-#endif
     CRYPTO_cleanup_all_ex_data();
+#endif
 }
 
 CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
