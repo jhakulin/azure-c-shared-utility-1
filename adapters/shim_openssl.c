@@ -24,7 +24,11 @@ void load_libssl()
 #if USE_OPENSSL_1_1_0_OR_UP
     libssl = dlopen("libssl.so.1.1", RTLD_LAZY);
 #else
-    libssl = dlopen("libssl.so.1.0.0", RTLD_LAZY);
+    libssl = dlopen("libssl.so.1.0.2", RTLD_LAZY);
+
+    if (!libssl) libssl = dlopen("libssl.so.1.0.0", RTLD_LAZY);
+
+    if (!libssl) libssl = dlopen("libssl.so.10", RTLD_LAZY);
 #endif
     LogInfo("libssl RTLD_NOLOAD: %lx\n", libssl);
 
