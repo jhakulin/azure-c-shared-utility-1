@@ -4,7 +4,9 @@
 #ifndef X509_OPENSSL_H
 #define X509_OPENSSL_H
 
-#include "openssl/ssl.h"
+//#include "openssl/ssl.h"
+//#include "shim_openssl.h"
+typedef struct ssl_ctx_st SSL_CTX;
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +19,6 @@ MOCKABLE_FUNCTION(,int, x509_openssl_add_credentials, SSL_CTX*, ssl_ctx, const c
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
 
 #endif

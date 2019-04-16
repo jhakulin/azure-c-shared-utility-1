@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 
+#include "shim_openssl.h"
+
+#if 0
 #include "openssl/opensslv.h"
 
 #if !defined(OPENSSL_VERSION_NUMBER)
@@ -29,6 +32,8 @@
 #include "openssl/ssl.h"
 #include "openssl/err.h"
 #include "openssl/crypto.h"
+#endif
+
 #include <stdio.h>
 #if defined(WIN32)
 #include <io.h>
@@ -36,12 +41,16 @@
 #include <dirent.h>
 #include <unistd.h>
 #endif
+
+#if 0
 #undef OCSP_REQUEST
 #undef OCSP_RESPONSE
 #include "openssl/ocsp.h"
 #include "openssl/x509v3.h"
 #include <openssl/asn1.h>
 #include <openssl/err.h>
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include "azure_c_shared_utility/lock.h"
@@ -113,7 +122,6 @@ struct CRYPTO_dynlock_value
 
 static const char* const OPTION_UNDERLYING_IO_OPTIONS = "underlying_io_options";
 #define SSL_DO_HANDSHAKE_SUCCESS 1
-
 
 /*this function will clone an option given by name and value*/
 static void* tlsio_openssl_CloneOption(const char* name, const void* value)
@@ -2054,6 +2062,10 @@ int tlsio_openssl_init(void)
 {
     crl_cache_lock = Lock_Init();
 
+#if defined(USE_OPENSSL_DYNAMIC)
+    load_libssl();
+#endif
+
 #if !USE_OPENSSL_1_1_0_OR_UP
     // OpenSSL 1.1.0 or up does not require explicit initialization, except if
     // non-default initialization is needed. Moreover, strings for libssl and
@@ -2061,9 +2073,7 @@ int tlsio_openssl_init(void)
     (void)SSL_library_init();
     SSL_load_error_strings();
     ERR_load_BIO_strings();
-#endif
 
-#if !USE_OPENSSL_1_1_0_OR_UP
     // OpenSSL 1.1.0 will by default add all ciphers and digests.
     OpenSSL_add_all_algorithms();
 
@@ -2082,6 +2092,7 @@ int tlsio_openssl_init(void)
 #else
     LogInfo("Using %s: %lx\n", SSLeay_version(SSLEAY_VERSION), SSLeay());
 #endif
+
     return 0;
 }
 
