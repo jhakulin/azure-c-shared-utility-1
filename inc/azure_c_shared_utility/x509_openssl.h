@@ -4,9 +4,13 @@
 #ifndef X509_OPENSSL_H
 #define X509_OPENSSL_H
 
-//#include "openssl/ssl.h"
-//#include "shim_openssl.h"
+#if defined(USE_OPENSSL_DYNAMIC)
+// TODO
 typedef struct ssl_ctx_st SSL_CTX;
+//#include "shim_openssl.h"
+#else
+#include "openssl/ssl.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
