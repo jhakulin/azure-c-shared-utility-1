@@ -1,12 +1,11 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+#include "shim_openssl.h"
 #include "azure_c_shared_utility/x509_openssl.h"
 #include "azure_c_shared_utility/optimize_size.h"
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/const_defines.h"
-
-#include "shim_openssl.h"
 
 #if 0
 #include "openssl/bio.h"
