@@ -7,14 +7,6 @@
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/const_defines.h"
 
-#if 0
-#include "openssl/bio.h"
-#include "openssl/rsa.h"
-#include "openssl/x509.h"
-#include "openssl/pem.h"
-#include "openssl/err.h"
-#endif
-
 #ifdef __APPLE__
     #ifndef EVP_PKEY_id
         #define EVP_PKEY_id(evp_key) evp_key->type
