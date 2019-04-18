@@ -5,50 +5,12 @@
 
 #include "shim_openssl.h"
 
-#if 0
-#include "openssl/opensslv.h"
-
-#if !defined(OPENSSL_VERSION_NUMBER)
-#error Fatal: OPENSSL_VERSION_NUMBER not defined.
-#elif (OPENSSL_VERSION_NUMBER >> 12) == 0x10002
-#define USE_OPENSSL_1_0_2 1
-#define USE_OPENSSL_1_1_0_OR_UP 0
-#elif ((OPENSSL_VERSION_NUMBER >> 12) == 0x10100 || \
-       (OPENSSL_VERSION_NUMBER >> 12) == 0x10101)
-#define USE_OPENSSL_1_0_2 0
-#define USE_OPENSSL_1_1_0_OR_UP 1
-#else
-#error Fatal: unexpected OPENSSL_VERSION_NUMBER; OpenSSL 1.0.2, 1.1.0, or 1.1.1 is required.
-// Note: version >= 0x20000000L and < 0x30000000L would be the FIPS-enabled one.
-// Also explicitly ignored here.
-#endif
-
-#if USE_OPENSSL_1_1_0_OR_UP
-#define OPENSSL_API_COMPAT 0x10100000L
-#else
-#define OPENSSL_API_COMPAT 0x10000000L
-#endif
-
-#include "openssl/ssl.h"
-#include "openssl/err.h"
-#include "openssl/crypto.h"
-#endif
-
 #include <stdio.h>
 #if defined(WIN32)
 #include <io.h>
 #else
 #include <dirent.h>
 #include <unistd.h>
-#endif
-
-#if 0
-#undef OCSP_REQUEST
-#undef OCSP_RESPONSE
-#include "openssl/ocsp.h"
-#include "openssl/x509v3.h"
-#include <openssl/asn1.h>
-#include <openssl/err.h>
 #endif
 
 #include <stdbool.h>
@@ -1929,17 +1891,9 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
     }
 #else
     {
+        // Note: TLS_method() uses highest negotiable.
         method = TLS_method();
     }
-#endif
-
-#if USE_OPENSSL_1_1_0_OR_UP
-    // TODO shouldn't be doing this.
-    int tlsVersion = tlsInstance->tls_version == OPTION_TLS_VERSION_1_2
-        ? TLS1_2_VERSION
-        : (tlsInstance->tls_version == OPTION_TLS_VERSION_1_1
-            ? TLS1_1_VERSION
-            : TLS1_VERSION);
 #endif
 
     tlsInstance->ssl_context = SSL_CTX_new(method);
@@ -1948,14 +1902,6 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
         log_ERR_get_error("Failed allocating OpenSSL context.");
         result = __FAILURE__;
     }
-#if USE_OPENSSL_1_1_0_OR_UP
-    else if(!SSL_CTX_set_min_proto_version(tlsInstance->ssl_context, tlsVersion) ||
-            !SSL_CTX_set_max_proto_version(tlsInstance->ssl_context, tlsVersion))
-    {
-        log_ERR_get_error("Failed to set TLS version.");
-        result = __FAILURE__;
-    }
-#endif
     else if (load_system_store(tlsInstance) != 0)
     {
         log_ERR_get_error("unable to load_system_store.");

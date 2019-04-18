@@ -162,10 +162,6 @@
     REQUIRED_FUNCTION(d2i_X509_CRL_bio) \
     REQUIRED_FUNCTION(i2d_X509_CRL_bio)
 
-// TODO ??
-    // REQUIRED_FUNCTION_1_1_0(d2i_X509_CRL_bio) \
-    // REQUIRED_FUNCTION_1_1_0(i2d_X509_CRL_bio)
-
 #if USE_OPENSSL_1_1_0_OR_UP
 #define REQUIRED_FUNCTION_1_1_0 REQUIRED_FUNCTION
 #define REQUIRED_FUNCTION_1_0_2(fn)
@@ -307,7 +303,6 @@ FOR_ALL_OPENSSL_FUNCTIONS
 #define X509_STORE_set_lookup_crls X509_STORE_set_lookup_crls_ptr
 #define d2i_X509_CRL_bio d2i_X509_CRL_bio_ptr
 #define i2d_X509_CRL_bio i2d_X509_CRL_bio_ptr
-
 
 // Stack functions have been already defined w/o the above define's in place.
 // Redefine the ones that we are using.
