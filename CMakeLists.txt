@@ -36,7 +36,7 @@ endif()
 if(WIN32)
     option(use_schannel "set use_schannel to ON if schannel is to be used, set to OFF to not use schannel" ON)
     option(use_openssl "set use_openssl to ON if openssl is to be used, set to OFF to not use openssl" OFF)
-    option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (dlopen)" OFF)
+    option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (Linux only)" OFF)
     option(use_wolfssl "set use_wolfssl to ON if wolfssl is to be used, set to OFF to not use wolfssl" OFF)
     option(use_etw "set use_etw to ON if ETW logging is to be used. Default is OFF" OFF)
     option(use_socketio "set use_socketio to ON if socketio is to be included in the library, set to OFF if a different implementation will be provided" ON)
@@ -44,11 +44,11 @@ else()
     option(use_schannel "set use_schannel to ON if schannel is to be used, set to OFF to not use schannel" OFF)
     if(MACOSX)
         option(use_openssl "set use_openssl to ON if openssl is to be used, set to OFF to not use openssl" OFF)
-        option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (dlopen)" OFF)
+        option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (Linux only)" OFF)
         option(use_socketio "set use_socketio to ON if socketio is to be included in the library, set to OFF if a different implementation will be provided" OFF)
     else()
         option(use_openssl "set use_openssl to ON if openssl is to be used, set to OFF to not use openssl" ON)
-        option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (dlopen)" OFF)
+        option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (Linux only)" OFF)
         option(use_socketio "set use_socketio to ON if socketio is to be included in the library, set to OFF if a different implementation will be provided" ON)
     endif()    
     option(use_wolfssl "set use_wolfssl to ON if wolfssl is to be used, set to OFF to not use wolfssl" OFF)
@@ -218,9 +218,13 @@ endif()
 if(${use_openssl})
     set(source_c_files ${source_c_files}
         ./adapters/tlsio_openssl.c
-        ./adapters/shim_openssl.c # TODO conditional
         ./adapters/x509_openssl.c
     )
+    if(${use_openssl_dynamic})
+        set(source_c_files ${source_c_files}
+            ./adapters/shim_openssl.c
+        )
+    endif()
 endif()
 if(${use_applessl})
     set(source_c_files ${source_c_files}

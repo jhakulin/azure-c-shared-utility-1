@@ -330,6 +330,7 @@ FOR_ALL_OPENSSL_FUNCTIONS
 
 #endif
 
-extern void load_libssl();
+// Returns 0 on success, != 0 otherwise.
+extern int load_libssl();
 
 #endif

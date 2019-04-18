@@ -2063,7 +2063,11 @@ int tlsio_openssl_init(void)
     crl_cache_lock = Lock_Init();
 
 #if defined(USE_OPENSSL_DYNAMIC)
-    load_libssl();
+    if (load_libssl())
+    {
+        LogError("Could not load libssl\n");
+        return __FAILURE__;
+    }
 #endif
 
 #if !USE_OPENSSL_1_1_0_OR_UP
