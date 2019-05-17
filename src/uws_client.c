@@ -1832,6 +1832,12 @@ static void on_underlying_io_send_complete(void* context, IO_SEND_RESULT send_re
     {
         LIST_ITEM_HANDLE ws_pending_send_list_item = (LIST_ITEM_HANDLE)context;
         WS_PENDING_SEND* ws_pending_send = (WS_PENDING_SEND*)singlylinkedlist_item_get_value(ws_pending_send_list_item);
+        if (ws_pending_send == NULL)
+        {
+            LogInfo("%s: the frame has alredy been completed: %p.", ws_pending_send_list_item);
+            return;
+        }
+
         UWS_CLIENT_HANDLE uws_client = ws_pending_send->uws_client;
         WS_SEND_FRAME_RESULT ws_send_frame_result;
 
