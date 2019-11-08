@@ -2611,7 +2611,8 @@ int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* optionName, c
             else
             {
                 tls_io_instance->disable_crl_check = *(const bool*)value;
-                result = 0;
+                LogInfo("Disable CRL Check set to %s", tls_io_instance->disable_crl_check ? "true" : "false");
+		result = 0;
             }
         }
         else if (strcmp(OPTION_DISABLE_DEFAULT_VERIFY_PATHS, optionName) == 0)
