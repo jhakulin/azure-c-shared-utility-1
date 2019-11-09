@@ -42,7 +42,7 @@ int load_libssl()
     int soNameIndex;
     for (soNameIndex = 0; soNameIndex < COUNT_OF(soNames); soNameIndex++)
     {
-        if (libssl = dlopen(soNames[soNameIndex], RTLD_LAZY)) {
+        if ((libssl = dlopen(soNames[soNameIndex], RTLD_LAZY))) {
             break;
         }
     }
