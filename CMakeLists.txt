@@ -50,7 +50,7 @@ else()
         option(use_openssl "set use_openssl to ON if openssl is to be used, set to OFF to not use openssl" ON)
         option(use_openssl_dynamic "set use_openssl_dynamic to ON if openssl is to be dynamically loaded (Linux only)" OFF)
         option(use_socketio "set use_socketio to ON if socketio is to be included in the library, set to OFF if a different implementation will be provided" ON)
-    endif()    
+    endif()
     option(use_wolfssl "set use_wolfssl to ON if wolfssl is to be used, set to OFF to not use wolfssl" OFF)
 endif()
 
@@ -68,12 +68,12 @@ if (MACOSX)
     endif()
 endif()
 
-if(${use_etw}) 
+if(${use_etw})
     #create res folder
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/res)
-    
+
     #populate res folder with the ETW resources
-    execute_process(COMMAND  ${CMAKE_CURRENT_LIST_DIR}/src/etw_provider_generate.cmd 
+    execute_process(COMMAND  ${CMAKE_CURRENT_LIST_DIR}/src/etw_provider_generate.cmd
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/src
     )
 endif()
@@ -434,9 +434,9 @@ endif()
 if(${use_openssl})
     if (${use_openssl_dynamic})
       add_definitions(-DUSE_OPENSSL_DYNAMIC)
-      set(aziotsharedutil_target_libs ${aziotsharedutil_target_libs} ${CMAKE_DL_LIBS})
+      set(aziotsharedutil_target_libs ${aziotsharedutil_target_libs} ${CMAKE_DL_LIBS} z dl)
     else()
-      set(aziotsharedutil_target_libs ${aziotsharedutil_target_libs} ${OPENSSL_LIBRARIES})
+      set(aziotsharedutil_target_libs ${aziotsharedutil_target_libs} ${OPENSSL_LIBRARIES} z dl)
     endif()
 
     if (WIN32)
@@ -531,13 +531,13 @@ if(${use_installed_dependencies})
 
     # Install Azure C Shared Utility
     set(package_location "cmake")
-    
+
     if(${build_as_dynamic})
         set(targets aziotsharedutil aziotsharedutil_dll)
     else(${build_as_dynamic})
         set(targets aziotsharedutil)
     endif(${build_as_dynamic})
-    
+
     install (TARGETS ${targets} EXPORT aziotsharedutilTargets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -579,8 +579,8 @@ else()
         aziotsharedutil
     )
     install(FILES ${source_h_files}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/azure_c_shared_utility) 
-    install(TARGETS ${install_staticlibs} 
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/azure_c_shared_utility)
+    install(TARGETS ${install_staticlibs}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
