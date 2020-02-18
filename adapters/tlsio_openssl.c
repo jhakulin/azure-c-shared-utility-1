@@ -2056,6 +2056,11 @@ static int create_openssl_instance(TLS_IO_INSTANCE* tlsInstance)
 
 int tlsio_openssl_init(void)
 {
+    if (crl_cache_lock != NULL)
+    {
+        return __FAILURE__;
+    }
+
     crl_cache_lock = Lock_Init();
 
 #if defined(USE_OPENSSL_DYNAMIC)
