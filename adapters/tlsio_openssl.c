@@ -886,6 +886,7 @@ static int load_cert_crl_http(
     int use_ssl, rv = 0;
     if (!OCSP_parse_url(url, &host, &port, &path, &use_ssl))
     {
+        LogError("Failed to Parse URL\n");
         goto error;
     }
 
@@ -911,12 +912,14 @@ static int load_cert_crl_http(
     bio = BIO_new_connect(isHostnameSet ? proxyHostnamePort : host);
     if (!bio || (!isHostnameSet && !BIO_set_conn_port(bio, port)))
     {
+        LogError("Failed to set hosename\n");
         goto error;
     }
 
     rctx = OCSP_REQ_CTX_new(bio, 1024 * 1024);
     if (!rctx)
     {
+        LogError("Failed to allocate buffer\n");
         goto error;
     }
 
@@ -924,11 +927,13 @@ static int load_cert_crl_http(
 
     if (!OCSP_REQ_CTX_http(rctx, "GET", isHostnameSet ? url : path))
     {
+        LogError("Failed to create http request.\n");
         goto error;
     }
 
     if (!OCSP_REQ_CTX_add1_header(rctx, "Host", host))
     {
+        LogError("Failed to add header\n");
         goto error;
     }
 
@@ -941,6 +946,7 @@ static int load_cert_crl_http(
 
         if (!bioPlain)
         {
+            LogError("Failed to convert bio to base 64\n");
             goto error;
         }
 
@@ -950,6 +956,7 @@ static int load_cert_crl_http(
 
         if (!bioBase64)
         {
+            LogError("Failed to alloc memory\n");
             BIO_free_all(bioBase64);
             goto error;
         }
@@ -959,6 +966,7 @@ static int load_cert_crl_http(
         int result = BIO_write(bioPlain, usernamePassword, (int)strlen(usernamePassword));
         if (result <= 0)
         {
+            LogError("Failed to write new bio\n");
             BIO_pop(bioPlain);
             BIO_free_all(bioBase64);
             BIO_free_all(bioPlain);
@@ -978,6 +986,7 @@ static int load_cert_crl_http(
 
         if (!OCSP_REQ_CTX_add1_header(rctx, "Proxy-Authorization", authData))
         {
+            LogError("Failed to add proxy auth header\n");
             goto error;
         }
     }
@@ -998,7 +1007,7 @@ error:
     {
         if (bio)
         {
-            LogError("Error loading CRL from %s\n", url);
+            LogError("Error (%d) loading CRL from %s\n", rv, url);
         }
     }
 
