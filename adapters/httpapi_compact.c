@@ -54,7 +54,6 @@ typedef struct HTTP_HANDLE_DATA_TAG
     char*           certificate;
     char*           x509ClientCertificate;
     char*           x509ClientPrivateKey;
-    char*           tlsIoVersion;
 
     XIO_HANDLE      xio_handle;
     size_t          received_bytes_count;
@@ -312,21 +311,8 @@ HTTP_HANDLE HTTPAPI_CreateConnection_Advanced(const char* hostName, int port, bo
                     http_instance->certificate = NULL;
                     http_instance->x509ClientCertificate = NULL;
                     http_instance->x509ClientPrivateKey = NULL;
-                    http_instance->tlsIoVersion = NULL;
                 }
             }
-        }
-    }
-
-    if (http_instance != NULL)
-    {
-        HTTPAPI_RESULT result;
-        /*Codes_SRS_HTTPAPI_COMPACT_21_024: [ The HTTPAPI_CreateConnection shall open the transport connection with the host to send the request. ]*/
-        if ((result = OpenXIOConnection(http_instance)) != HTTPAPI_OK)
-        {
-            LogError("Open HTTP connection failed (result = %s)", ENUM_TO_STRING(HTTPAPI_RESULT, result));
-            free(http_instance);
-            http_instance = NULL;
         }
     }
 
@@ -346,6 +332,12 @@ static void on_io_close_complete(void* context)
 
 void HTTPAPI_CloseConnection(HTTP_HANDLE handle)
 {
+
+#ifdef WIN32
+#pragma warning(push)
+#pragma warning(disable:6001)
+#endif // WIN32
+
     HTTP_HANDLE_DATA* http_instance = (HTTP_HANDLE_DATA*)handle;
 
     /*Codes_SRS_HTTPAPI_COMPACT_21_020: [ If the connection handle is NULL, the HTTPAPI_CloseConnection shall not do anything. ]*/
@@ -409,12 +401,12 @@ void HTTPAPI_CloseConnection(HTTP_HANDLE handle)
         {
             free(http_instance->x509ClientPrivateKey);
         }
-        if (http_instance->tlsIoVersion)
-        {
-            free(http_instance->tlsIoVersion);
-        }
         free(http_instance);
     }
+    
+#ifdef WIN32
+#pragma warning(pop)
+#endif // WIN32
 }
 
 static void on_io_open_complete(void* context, IO_OPEN_RESULT_DETAILED open_result_detailed)
@@ -702,6 +694,12 @@ static int readChunk(HTTP_HANDLE_DATA* http_instance, char* buf, size_t size)
             break;
         }
 
+        // on error
+        if (cur < 0)
+        {
+            return cur;
+        }
+
         // read cur bytes (might be less than requested)
         size -= (size_t)cur;
         offset += cur;
@@ -775,26 +773,19 @@ static int skipN(HTTP_HANDLE_DATA* http_instance, size_t n)
 }
 
 
-/*Codes_SRS_HTTPAPI_COMPACT_21_021: [ The HTTPAPI_ExecuteRequest shall execute the http communtication with the provided host, sending a request and reciving the response. ]*/
+/*Codes_SRS_HTTPAPI_COMPACT_21_021: [ The HTTPAPI_ExecuteRequest shall execute the http communication with the provided host, sending a request and receiving the response. ]*/
 static HTTPAPI_RESULT OpenXIOConnection(HTTP_HANDLE_DATA* http_instance)
 {
     HTTPAPI_RESULT result;
 
     if (http_instance->is_connected != 0)
     {
-        /*Codes_SRS_HTTPAPI_COMPACT_21_033: [ If the whole process succeed, the HTTPAPI_ExecuteRequest shall retur HTTPAPI_OK. ]*/
+        /*Codes_SRS_HTTPAPI_COMPACT_21_033: [ If the whole process succeed, the HTTPAPI_ExecuteRequest shall return HTTPAPI_OK. ]*/
         result = HTTPAPI_OK;
     }
     else
     {
         http_instance->is_io_error = 0;
-
-        if ((http_instance->tlsIoVersion != NULL) &&
-            (xio_setoption(http_instance->xio_handle, OPTION_TLS_VERSION, http_instance->tlsIoVersion) != 0))
-        {
-            result = HTTPAPI_SET_OPTION_FAILED;
-            LogInfo("Could not set TLS IO version");
-        }
 
         /*Codes_SRS_HTTPAPI_COMPACT_21_022: [ If a Certificate was provided, the HTTPAPI_ExecuteRequest shall set this option on the transport layer. ]*/
         if ((http_instance->certificate != NULL) &&
@@ -1321,6 +1312,11 @@ HTTPAPI_RESULT HTTPAPI_ExecuteRequest_Internal(HTTP_HANDLE handle, HTTPAPI_REQUE
         result = HTTPAPI_INVALID_ARG;
         LogError("(result = %s)", ENUM_TO_STRING(HTTPAPI_RESULT, result));
     }
+    /*Codes_SRS_HTTPAPI_COMPACT_21_024: [ The HTTPAPI_ExecuteRequest shall open the transport connection with the host to send the request. ]*/
+    else if ((result = OpenXIOConnection(http_instance)) != HTTPAPI_OK)
+    {
+        LogError("Open HTTP connection failed (result = %s)", ENUM_TO_STRING(HTTPAPI_RESULT, result));
+    }
     /*Codes_SRS_HTTPAPI_COMPACT_21_026: [ If the open process succeed, the HTTPAPI_ExecuteRequest shall send the request message to the host. ]*/
     else if ((result = SendHeadsToXIO(http_instance, requestType, relativePath, httpHeadersHandle, headersCount)) != HTTPAPI_OK)
     {
@@ -1394,7 +1390,7 @@ HTTPAPI_RESULT HTTPAPI_ExecuteRequest_With_Streaming(HTTP_HANDLE handle, HTTPAPI
 }
 
 /*Codes_SRS_HTTPAPI_COMPACT_21_056: [ The HTTPAPI_SetOption shall change the HTTP options. ]*/
-/*Codes_SRS_HTTPAPI_COMPACT_21_057: [ The HTTPAPI_SetOption shall receive a handle that identiry the HTTP connection. ]*/
+/*Codes_SRS_HTTPAPI_COMPACT_21_057: [ The HTTPAPI_SetOption shall receive a handle that identify the HTTP connection. ]*/
 /*Codes_SRS_HTTPAPI_COMPACT_21_058: [ The HTTPAPI_SetOption shall receive the option as a pair optionName/value. ]*/
 HTTPAPI_RESULT HTTPAPI_SetOption(HTTP_HANDLE handle, const char* optionName, const void* value)
 {
@@ -1412,7 +1408,7 @@ HTTPAPI_RESULT HTTPAPI_SetOption(HTTP_HANDLE handle, const char* optionName, con
         /*Codes_SRS_HTTPAPI_COMPACT_21_061: [ If the value is NULL, the HTTPAPI_SetOption shall return HTTPAPI_INVALID_ARG. ]*/
         result = HTTPAPI_INVALID_ARG;
     }
-    else if (strcmp("TrustedCerts", optionName) == 0)
+    else if (strcmp(OPTION_TRUSTED_CERT, optionName) == 0)
     {
 		int len;
 
@@ -1433,26 +1429,6 @@ HTTPAPI_RESULT HTTPAPI_SetOption(HTTP_HANDLE handle, const char* optionName, con
         {
             /*Codes_SRS_HTTPAPI_COMPACT_21_064: [ If the HTTPAPI_SetOption get success setting the option, it shall return HTTPAPI_OK. ]*/
             (void)strcpy_s(http_instance->certificate, len + 1, (const char*)value);
-            result = HTTPAPI_OK;
-        }
-    }
-    else if (strcmp(OPTION_TLS_VERSION, optionName) == 0)
-    {
-        if (http_instance->tlsIoVersion)
-        {
-            free(http_instance->tlsIoVersion);
-        }
-        int len;
-        len = (int)strlen((char*)value);
-        http_instance->tlsIoVersion = (char*)malloc((len + 1) * sizeof(char));
-        if (http_instance->tlsIoVersion == NULL)
-        {
-            result = HTTPAPI_ALLOC_FAILED;
-            LogInfo("unable to allocate memory for the TLS IO version in HTTPAPI_SetOption");
-        }
-        else
-        {
-            (void)strcpy_s(http_instance->tlsIoVersion, len + 1, (const char*)value);
             result = HTTPAPI_OK;
         }
     }
@@ -1502,11 +1478,19 @@ HTTPAPI_RESULT HTTPAPI_SetOption(HTTP_HANDLE handle, const char* optionName, con
             result = HTTPAPI_OK;
         }
     }
-    else
-    {
-        /*Codes_SRS_HTTPAPI_COMPACT_21_063: [ If the HTTP do not support the optionName, the HTTPAPI_SetOption shall return HTTPAPI_INVALID_ARG. ]*/
-        result = HTTPAPI_INVALID_ARG;
-        LogInfo("unknown option %s", optionName);
+    else {
+        /*[ Otherwise all options shall be passed as they are to the underlying IO by calling `xio_setoption`. ]*/
+        if (xio_setoption(http_instance->xio_handle, optionName, value) != 0)
+        {
+            /*[ If `xio_setoption` fails, `HTTPAPI_SetOption` shall fail and return a non-zero value. ]*/
+            LogError("xio_setoption failed.");
+            result = HTTPAPI_ALLOC_FAILED;
+        }
+        else
+        {
+            /*[ On success, `HTTPAPI_SetOption` shall return HTTPAPI_OK. ]*/
+            result = HTTPAPI_OK;
+        }
     }
     return result;
 }
@@ -1530,7 +1514,7 @@ HTTPAPI_RESULT HTTPAPI_CloneOption(const char* optionName, const void* value, co
         /*Codes_SRS_HTTPAPI_COMPACT_21_069: [ If the savedValue is NULL, the HTTPAPI_CloneOption shall return HTTPAPI_INVALID_ARG. ]*/
         result = HTTPAPI_INVALID_ARG;
     }
-    else if (strcmp("TrustedCerts", optionName) == 0)
+    else if (strcmp(OPTION_TRUSTED_CERT, optionName) == 0)
     {
         certLen = strlen((const char*)value);
         tempCert = (char*)malloc((certLen + 1) * sizeof(char));
