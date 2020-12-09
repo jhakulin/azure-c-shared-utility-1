@@ -544,7 +544,7 @@ static int enable_domain_check(TLS_IO_INSTANCE* tls_io_instance)
     {
         if (wolfSSL_check_domain_name(tls_io_instance->ssl, tls_io_instance->hostname) != WOLFSSL_SUCCESS)
         {
-            result = MU_FAILURE;
+            result = __FAILURE__;
         }
     }
 
@@ -558,7 +558,7 @@ static int prepare_wolfssl_open(TLS_IO_INSTANCE* tls_io_instance)
     if (enable_domain_check(tls_io_instance))
     {
         LogError("Failed to configure domain name verification");
-        result = MU_FAILURE;
+        result = __FAILURE__;
     }
     else if (add_certificate_to_store(tls_io_instance) != 0)
     {
