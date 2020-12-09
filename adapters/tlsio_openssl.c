@@ -1924,7 +1924,7 @@ static int enable_domain_check(TLS_IO_INSTANCE* tlsInstance)
         X509_VERIFY_PARAM_set_hostflags(param, 0);
         if (!X509_VERIFY_PARAM_set1_host(param, tlsInstance->hostname, strlen(tlsInstance->hostname)))
         {
-            result = MU_FAILURE;
+            result = __FAILURE__;
         }
         else
         {
@@ -2182,7 +2182,7 @@ CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
         }
         else
         {
-            if (mallocAndStrcpy_s((char **)&result->serverName, tls_io_config->hostname) != 0)
+            if (mallocAndStrcpy_s((char **)&result->hostname, tls_io_config->hostname) != 0)
             {
                 free(result);
                 result = NULL;
@@ -2281,9 +2281,9 @@ void tlsio_openssl_destroy(CONCRETE_IO_HANDLE tls_io)
             xio_destroy(tls_io_instance->underlying_io);
             tls_io_instance->underlying_io = NULL;
         }
-        if (tls_io_instance->serverName != NULL)
+        if (tls_io_instance->hostname != NULL)
         {
-            free((void *)tls_io_instance->serverName);
+            free((void *)tls_io_instance->hostname);
         }
         free(tls_io);
     }
