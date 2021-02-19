@@ -563,16 +563,24 @@ static void dowork_send(TLS_IO_INSTANCE* tls_io_instance)
             else
             {
                 // The write returned non-success. It may be busy, or it may be broken
-                CFErrorRef write_error = CFWriteStreamCopyError(tls_io_instance->sockWrite);
-                if (write_error != NULL && CFErrorGetCode(write_error) != errSSLWouldBlock)
+                CFIndex write_error_code = errSSLWouldBlock;
+                {
+                    CFErrorRef write_error = CFWriteStreamCopyError(tls_io_instance->sockWrite);
+                    if (write_error != NULL)
+                    {
+                        write_error_code = CFErrorGetCode(write_error);
+                        CFRelease(write_error);
+                    }
+                }
+
+                if (write_error_code != errSSLWouldBlock)
                 {
                     /* Codes_SRS_TLSIO_30_002: [ The phrase "destroy the failed message" means that the adapter shall remove the message from the queue and destroy it after calling the message's on_send_complete along with its associated callback_context and IO_SEND_ERROR. ]*/
                     /* Codes_SRS_TLSIO_30_005: [ When the adapter enters TLSIO_STATE_EXT_ERROR it shall call the  on_io_error function and pass the on_io_error_context that were supplied in  tlsio_open . ]*/
                     /* Codes_SRS_TLSIO_30_095: [ If the send process fails before sending all of the bytes in an enqueued message, tlsio_dowork shall destroy the failed message and enter TLSIO_STATE_EX_ERROR. ]*/
                     // This is an unexpected error, and we need to bail out. Probably lost internet connection.
-                    LogInfo("Hard error from CFWriteStreamWrite: %ld", CFErrorGetCode(write_error));
+                    LogInfo("Hard error from CFWriteStreamWrite: %ld", write_error_code);
                     process_and_destroy_head_message(tls_io_instance, IO_SEND_ERROR);
-                    CFRelease(write_error);
                 }
                 else
                 {
