@@ -10,3 +10,4 @@
 *.jar
 *.aps
 /res
+/testtools/SerialPort/SerialPort/obj/**/*
