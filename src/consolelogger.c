@@ -6,6 +6,7 @@
 #include <time.h>
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/consolelogger.h"
+#include <stdlib.h>
 
 #if (defined(_MSC_VER)) && (!(defined WINCE))
 #include "windows.h"
