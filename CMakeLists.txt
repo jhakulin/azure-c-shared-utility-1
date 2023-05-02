@@ -162,6 +162,8 @@ endif()
 
 include_directories(${UMOCK_C_INC_FOLDER})
 
+message(STATUS "use new submodule for azure c shared")
+
 #these are the C source files
 set(source_c_files
 ./src/base32.c
