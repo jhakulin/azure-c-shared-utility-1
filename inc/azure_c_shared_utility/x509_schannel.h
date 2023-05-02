@@ -5,6 +5,7 @@
 #define X509_SCHANNEL_H
 
 #include "windows.h"
+#include <wincrypt.h>
 
 #ifdef __cplusplus
 extern "C" {
