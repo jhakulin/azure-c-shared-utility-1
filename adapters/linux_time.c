@@ -61,7 +61,7 @@ int get_time_ns(struct timespec* ts)
     return err;
 }
 
-time_t get_time_s()
+time_t get_time_s(void)
 {   
     struct timespec ts;
     if (get_time_ns(&ts) != 0)
